@@ -10,7 +10,7 @@ library(here)
 library(ggplot2)
 
 # Load the cleaned data
-cons_tum <- readRDS(file = here("data/cons_tum_cleaned.rds"))
+cons_tum <- readRDS(file = here("cons_tum_cleaned.rds"))
 
 # Create a gt table with color formatting
 # Apply conditional color formatting row by row

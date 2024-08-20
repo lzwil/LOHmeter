@@ -10,8 +10,8 @@ library(ggplot2)
 library(here)
 library(stringr)
 
-constit <- read.table(here("data/A2023-1182_constit_all_library.txt"), header = TRUE, sep = "\t", fill = TRUE)
-tumoral <- read.table(here("data/A2023-2853_K_rein_all_library.txt"), header = TRUE, sep = "\t", fill = TRUE)
+constit <- read.table(here("data/A2024-2382_tissu_sain_sein.txt"), header = TRUE, sep = "\t", fill = TRUE)
+tumoral <- read.table(here("data/A2024-2344_tumoral_sein.txt"), header = TRUE, sep = "\t", fill = TRUE)
 
 
 # Set the list of genes and columns to filter out
@@ -32,7 +32,7 @@ cons_tum = left_join(constit_filtered, tumoral_filtered, by = "Pos.", suffix = c
 
 # Keep the genomic position and order by it
 cons_tum <- cons_tum %>% 
-  mutate(Pos. = str_extract(Pos., "chr\\d+:g\\.\\d+")) %>%
+  mutate(Pos. = str_extract(Pos., "chr[XY\\d]+:g\\.\\d+")) %>%
   arrange(desc(Pos.))
 
 # Convert columns to character if they are not already
