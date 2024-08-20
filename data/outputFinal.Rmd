@@ -2,18 +2,23 @@
 title: "Analyse de la Fréquence Allélique et Déduction du Pourcentage Tumoral"
 author: "Léo Zwilling"
 date: "`r Sys.Date()`"
-output: pdf_document
+output:
+  pdf_document: default
+  theme: flatly
+  html_document: null
 ---
 
 ## Introduction
 
-This document performs an analysis of allele frequency and estimates the tumoral percentage of the sample. It includes data preparation, visualization, and summary statistics.
+Ce document effectue une analyse de la fréquence des allèles et estime le pourcentage tumoral de l'échantillon. Il comprend la préparation des données, la visualisation et des statistiques récapitulatives.
 
-## Data Visualization with GT
+## Aggrégation des données
 
-We will first create a GT table to visualize the data with conditional color formatting based on the LOH classification.
+Tableau ordonné par position génomique, avec ajout de la classification CIS ou TRANS de la LOH, et calcul du pourcentage tumoral estimé.
+Les suffixes ".cons" désignent les données du séquencage constitutif et ".tum" celles du séquencage somatique. 
+La fréquence allélique somatique (Coverage.tum) a été normalisée par rapport à la fréquence somatique. 
 
-```{r gt_table, echo=FALSE}
+```{r gt_table, echo=FALSE, message=FALSE}
 library(dplyr)
 library(gt)
 library(here)
@@ -25,27 +30,26 @@ cons_tum <- readRDS(file = here("data/cons_tum_cleaned.rds"))
 # Create a gt table with color formatting
 # Apply conditional color formatting row by row
 cons_tum %>%
+  select(Pos., Gene.cons, Coverage.cons, Coverage.tum, LOH, `%tumoral`) %>%
   gt() %>%
   tab_style(
-    style = cell_fill(color = "#B22222"),  # Darker red
+    style = cell_fill(color = "red"),  # Darker red
     locations = cells_body(
-      columns = vars(LOH, Coverage.tum, `%tumoral`),
+      columns = c(LOH, Coverage.tum, `%tumoral`),
       rows = LOH == "CIS"
     )
   ) %>%
   tab_style(
     style = cell_fill(color = "#228B22"),  # Darker green
     locations = cells_body(
-      columns = vars(LOH, Coverage.tum, `%tumoral`),
+      columns = c(LOH, Coverage.tum, `%tumoral`),
       rows = LOH == "TRANS"
     )
   )
 
 ``` 
 
-## Data Preparation
 
-We extract the %tumoral values based on LOH classification and calculate the mean and standard deviation for each classification.
 
 ```{r data_preparation, echo=FALSE} 
 # Extract lists of %tumoral values based on LOH classification
@@ -71,7 +75,7 @@ mean_CIS_TRANS <- cons_tum %>%
 
 ## Boxplot Visualization
 
-We create a boxplot of %tumoral by LOH classification, displaying the mean and standard deviation.
+Représentation des variations du %tumoral éstimé par classse, montrant la moyenne et l'équart type.
 
 
 ```{r boxplot, echo=FALSE} 
@@ -88,16 +92,18 @@ ggplot(data_for_plot, aes(x = LOH, y = `%tumoral`, fill = LOH)) +
        y = "% Tumoral") +
   theme_minimal()
 
+# Mean of the two classes
+mean_CIS_TRANS <- cons_tum %>%
+  filter(LOH %in% c("CIS", "TRANS")) %>%
+  summarise(Mean = mean(`%tumoral`, na.rm = TRUE)) %>%
+  pull(Mean)
+print(mean_CIS_TRANS)
+
 ```
 
 ## Results
 
-The calculated mean for the CIS and TRANS classes combined is:
-
-
-```{r result, echo=FALSE} 
-mean_CIS_TRANS
-``` 
+La moyenne de pourcentage tumoral CIS et TRANS confondus est de `r round(mean_CIS_TRANS, 2) * 100`%.
 
 
 

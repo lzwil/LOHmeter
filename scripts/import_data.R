@@ -8,6 +8,7 @@ library(dplyr)
 library(gt)
 library(ggplot2)
 library(here)
+library(stringr)
 
 constit <- read.table(here("data/A2023-1182_constit_all_library.txt"), header = TRUE, sep = "\t", fill = TRUE)
 tumoral <- read.table(here("data/A2023-2853_K_rein_all_library.txt"), header = TRUE, sep = "\t", fill = TRUE)
@@ -28,6 +29,11 @@ tumoral_filtered <- tumoral %>%
 
 # Merge the tables
 cons_tum = left_join(constit_filtered, tumoral_filtered, by = "Pos.", suffix = c(".cons", ".tum"))
+
+# Keep the genomic position and order by it
+cons_tum <- cons_tum %>% 
+  mutate(Pos. = str_extract(Pos., "chr\\d+:g\\.\\d+")) %>%
+  arrange(desc(Pos.))
 
 # Convert columns to character if they are not already
 cons_tum$Coverage.cons <- as.character(cons_tum$Coverage.cons)
@@ -61,26 +67,6 @@ cons_tum <- cons_tum %>%
     )
   )
 
-# Color the LOH column depending on the class
-# Create a gt table with color formatting
-# Apply conditional color formatting row by row
-cons_tum %>%
-  gt() %>%
-  tab_style(
-    style = cell_fill(color = "red"),
-    locations = cells_body(
-      columns = vars(LOH, Coverage.tum),
-      rows = LOH == "CIS"
-    )
-  ) %>%
-  tab_style(
-    style = cell_fill(color = "green"),
-    locations = cells_body(
-      columns = vars(LOH, Coverage.tum),
-      rows = LOH == "TRANS"
-    )
-  )
-  
 #Estimate the %tumoral
 cons_tum <- cons_tum %>%
   mutate(
