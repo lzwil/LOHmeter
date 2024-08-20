@@ -77,6 +77,6 @@ cons_tum <- cons_tum %>%
   )
 
 
-saveRDS(cons_tum, file = "data/cons_tum_cleaned.rds")
+saveRDS(cons_tum, file = "cons_tum_cleaned.rds")
 
 
