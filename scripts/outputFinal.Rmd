@@ -18,8 +18,8 @@ Ce document effectue une analyse de la fréquence des allèles et estime le pour
 ## Aggrégation des données
 
 Tableau ordonné par position génomique, avec ajout de la classification CIS ou TRANS de la LOH, et calcul du pourcentage tumoral estimé.
-Les suffixes ".cons" désignent les données du séquencage constitutif et ".tum" celles du séquencage somatique. 
-La fréquence allélique somatique (Coverage.tum) a été normalisée par rapport à la fréquence somatique. 
+Les suffixes ".cons" désignent les données du séquencage constitutionnel et ".tum" celles du séquencage somatique. 
+La fréquence allélique somatique (Coverage.tum) a été normalisée par rapport à la fréquence allélique constitutionnelle. 
 
 ```{r gt_table, echo=FALSE, message=FALSE}
 library(dplyr)
@@ -78,7 +78,7 @@ mean_CIS_TRANS <- cons_tum %>%
 
 ## Boxplot Visualization
 
-Représentation des variations du %tumoral éstimé par classse, montrant la moyenne et l'équart type.
+Représentation des variations du %tumoral éstimé par classse, montrant la moyenne et l'écart-type.
 
 
 ```{r boxplot, echo=FALSE} 
