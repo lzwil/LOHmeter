@@ -20,8 +20,6 @@ import_data <- function(constit, tumoral) {
   colnames(constit) <- gsub(" ", ".", colnames(constit))
   colnames(tumoral) <- gsub(" ", ".", colnames(tumoral))
   
-  View(constit)
-  
   # Set the list of genes and columns to filter out
   excluded_genes <- c("CYP2D6", "CYP1A2", "CYP2C19", "CYP3A4", "CYP3A5", "PMS2", "SDHA")
   retained_columns <- c("Gene", "Transcript", "Pos.", "Type", "Nuc.Change", "Coverage", "AA.Change", "c..HGVS", "p..HGVS")

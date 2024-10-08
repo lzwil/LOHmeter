@@ -1,4 +1,3 @@
-library(shiny)
 library(bslib)
 library(DT)
 library(fontawesome)  # Optional: for additional icons
@@ -17,8 +16,7 @@ ui <- page_sidebar(
     fileInput(inputId = "tum", label = "Tumoral"),
     checkboxInput(inputId = "filter_rows", label = "Afficher uniquement les lignes CIS et TRANS", value = TRUE),  
     br(),
-    actionButton(inputId = "delete_rows", label = "Supprimer les lignes sélectionnées", icon = icon("trash-alt")),  
-    br()
+    actionButton(inputId = "delete_rows", label = "Supprimer les lignes sélectionnées", icon = icon("trash-alt"))
   ),
   # Main content layout with side-by-side cards
   fluidRow(
@@ -37,7 +35,9 @@ ui <- page_sidebar(
       card(
         width = 12,
         style = "height: 370px;", 
-        full_screen = FALSE
+        full_screen = FALSE,
+        # Add a select input for gene filtering directly here
+        uiOutput("gene_selector")  # Dynamic UI for gene selection
       )
     ),
     # Column for the plot content
@@ -93,6 +93,15 @@ server <- function(input, output) {
     # Analyze the data and set it in reactive value
     result <- analyse_data("cons_tum_cleaned.rds")
     processed_data(result)  # Store the result in the reactive value
+  })
+  
+  # Render the gene selection UI based on the processed data
+  output$gene_selector <- renderUI({
+    req(processed_data())
+    
+    genes <- unique(processed_data()$cons_tum$Gene.cons)  # Get unique gene names
+    genes <- c("All Genes", genes)  # Add "All Genes" as the first option
+    selectInput("selected_gene", "Select Gene:", choices = genes, selected = "All Genes")
   })
   
   # Render the DataTable
@@ -154,8 +163,12 @@ server <- function(input, output) {
     req(result)  
     req(result$cons_tum)  
     
+    # Filter the data by the selected gene
+    filtered_data <- result$cons_tum %>%
+      filter(Gene.cons == input$selected_gene)  
+    
     # Generate the plot using the reusable function
-    generate_boxplot(result$cons_tum)
+    generate_boxplot(filtered_data)
   })
   
   # Update table and plot when rows are deleted
