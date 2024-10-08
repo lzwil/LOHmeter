@@ -41,43 +41,21 @@ import_data <- function(constit, tumoral) {
   cons_tum$Coverage.cons <- as.character(cons_tum$Coverage.cons)
   cons_tum$Coverage.tum <- as.character(cons_tum$Coverage.tum)
   
-  # Keep only the allele percentage
+  # Keep only the allele percentage and make a frequency instead
   cons_tum <- cons_tum %>%
     mutate(
       Coverage.cons = sapply(strsplit(Coverage.cons, "%"), function(x) as.numeric(x[1])),
       Coverage.tum = sapply(strsplit(Coverage.tum, "%"), function(x) as.numeric(x[1])),
+      Coverage.cons = Coverage.cons / 100,  # Divide by 100
+      Coverage.tum = Coverage.tum / 100      # Divide by 100
+    ) %>%
+    rename(
+      VAF.cons = Coverage.cons,  # Rename Coverage.cons to VAF.cons
+      VAF.tum = Coverage.tum      # Rename Coverage.tum to VAF.tum
     )
   
-  # Normalise for the heterozygous in constit
-  cons_tum <- cons_tum %>%
-    mutate(
-      Coverage.tum = if_else(
-        Coverage.cons > 40 & Coverage.cons < 60,
-        (Coverage.tum * 50) / Coverage.cons,
-        Coverage.tum
-      )
-    )
-  
-    
-  # Classify the Loss of Heterozygousity in TRANS or CIS 
-  cons_tum <- cons_tum %>%
-    mutate(
-      LOH = case_when(
-        Coverage.tum >= 10 & Coverage.tum <= 40 ~ "CIS",
-        Coverage.tum >= 60 & Coverage.tum <= 90 ~ "TRANS",
-        TRUE ~ "" # Default value if none of the above conditions are met
-      )
-    )
-  
-  #Estimate the %tumoral
-  cons_tum <- cons_tum %>%
-    mutate(
-      `%tumoral` = case_when(
-        LOH == "CIS" ~ abs((2 * (Coverage.tum / 100) - 1) / (1 - (Coverage.tum / 100))),
-        LOH == "TRANS" ~ 2 - (1 / Coverage.tum) * 100
-        )
-    )
-
   saveRDS(cons_tum, file = "cons_tum_cleaned.rds")
   
 }
+
+
