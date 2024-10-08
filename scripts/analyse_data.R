@@ -13,8 +13,7 @@ analyse_data <- function(import_rds) {
   
   # Load the cleaned data
   cons_tum <- readRDS(file = import_rds)
-  
-  
+
   # Normalise for the heterozygous in tum relaive to constit
   cons_tum <- cons_tum %>%
     mutate(
@@ -55,13 +54,7 @@ analyse_data <- function(import_rds) {
   # Create a gt table with color formatting
   # Apply conditional color formatting row by row
   cons_tum <- cons_tum %>%
-    select(Pos., Gene.cons, c..HGVS.cons, VAF.cons, VAF.tum, LOH, `%tumoral`) %>%
-    mutate(
-      # Extract the numeric part of the chromosome, handling cases like chrX, chrY, etc.
-      chrom_num = as.numeric(str_extract(Pos., "(?<=chr)[0-9]+")),
-      # Extract the position number from Pos.
-      pos_num = as.numeric(str_extract(Pos., "(?<=\\.g\\.)[0-9]+"))
-    ) %>%
+    select(Pos., Gene.cons, c..HGVS.cons, VAF.cons, VAF.tum, LOH, `%tumoral`, chrom_num, pos_num) %>%
     # Sort by chrom_num first, then by pos_num
     arrange(chrom_num, pos_num) %>%
     # Remove temporary sorting columns

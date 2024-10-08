@@ -5,6 +5,7 @@
 # import_data.R
 
 library(dplyr)
+library(readr)
 library(gt)
 library(ggplot2)
 library(here)
@@ -12,9 +13,14 @@ library(stringr)
 
 import_data <- function(constit, tumoral) {
 
-  constit <- read.table(constit, header = TRUE, sep = "\t", fill = TRUE)
-  tumoral <- read.table(tumoral, header = TRUE, sep = "\t", fill = TRUE)
+  constit <- read_delim(file = constit, delim = "\t", na = "", trim_ws = TRUE)
+  tumoral <- read_delim(file = tumoral, delim = "\t", na = "", trim_ws = TRUE)
   
+  # Replace blank spaces in column names with dots
+  colnames(constit) <- gsub(" ", ".", colnames(constit))
+  colnames(tumoral) <- gsub(" ", ".", colnames(tumoral))
+  
+  View(constit)
   
   # Set the list of genes and columns to filter out
   excluded_genes <- c("CYP2D6", "CYP1A2", "CYP2C19", "CYP3A4", "CYP3A5", "PMS2", "SDHA")
@@ -35,7 +41,13 @@ import_data <- function(constit, tumoral) {
   # Keep the genomic position and order by it
   cons_tum <- cons_tum %>% 
     mutate(Pos. = str_extract(Pos., "chr[XY\\d]+:g\\.\\d+")) %>%
-    arrange(desc(Pos.))
+    arrange(desc(Pos.)) %>%
+    mutate(
+      # Extract the numeric part of the chromosome, handling cases like chrX, chrY, etc.
+      chrom_num = as.numeric(str_extract(Pos., "(?<=chr)[0-9]+")),
+      # Extract the position number from Pos.
+      pos_num = as.numeric(str_extract(Pos., "(?<=\\.g\\.)[0-9]+"))
+    )
   
   # Convert columns to character if they are not already
   cons_tum$Coverage.cons <- as.character(cons_tum$Coverage.cons)
