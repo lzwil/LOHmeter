@@ -99,9 +99,23 @@ server <- function(input, output) {
   output$gene_selector <- renderUI({
     req(processed_data())
     
-    genes <- unique(processed_data()$cons_tum$Gene.cons)  # Get unique gene names
-    genes <- c("All Genes", genes)  # Add "All Genes" as the first option
-    selectInput("selected_gene", "Select Gene:", choices = genes, selected = "All Genes")
+    # Get the processed data
+    result <- processed_data()
+    filtered_data <- result$cons_tum
+    
+    # Filter the data if the "Afficher uniquement les lignes CIS et TRANS" checkbox is checked
+    if (input$filter_rows) {
+      filtered_data <- filtered_data %>% filter(LOH %in% c("CIS", "TRANS"))
+    }
+    
+    genes <- unique(filtered_data$Gene.cons)
+    genes <- c("Tous les locus", genes)  # Add "All Genes" as the first option
+    selectInput("selected_gene", 
+                "Sélectionner un ou plusieurs locus:", 
+                choices = genes, 
+                selected = "Tous les locus", 
+                multiple = TRUE,
+    )
   })
   
   # Render the DataTable
@@ -164,9 +178,14 @@ server <- function(input, output) {
     req(result$cons_tum)  
     
     # Filter the data by the selected gene
-    filtered_data <- result$cons_tum %>%
-      filter(Gene.cons == input$selected_gene)  
     
+    if (any("Tous les locus" %in% input$selected_gene)){
+      filtered_data <- result$cons_tum
+    } else {
+      filtered_data <- result$cons_tum %>%
+        filter(Gene.cons %in% input$selected_gene)
+    }
+    View(filtered_data)
     # Generate the plot using the reusable function
     generate_boxplot(filtered_data)
   })
