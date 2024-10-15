@@ -11,49 +11,22 @@ source("analyse_data.R")
 
 # Define UI for application
 ui <- page_sidebar(
-  title = "LOHmeter",
+  title = tagList(
+    tags$h2("LOHmeter", style = "display: inline-block; margin-right: 20px;"),
+    actionButton(inputId = "navigate_to_page2", label = "Page 2")
+  ),
   sidebar = sidebar(
     fileInput(inputId = "constit", label = "Constitutionel"),
     fileInput(inputId = "tum", label = "Tumoral"),
     checkboxInput(inputId = "filter_rows", label = "Afficher uniquement les lignes CIS et TRANS", value = TRUE),  
     uiOutput("delete_button_ui"),
-    uiOutput("gene_selector")
+    uiOutput("gene_selector"),
+    # Add a button to navigate to the new page
+    actionButton(inputId = "navigate_to_page2", label = "Page 2")
   ),
   # Main content layout with side-by-side cards
   fluidRow(
-    # Column for the table UI
-    column(
-      width = 12,
-      card(
-        width = 12,
-        style = "height: 500px; overflow-y: auto;",
-        DTOutput("table_ui") 
-      ),
-    ),
-    # Column for the locus selection
-    column(
-      width = 4,  # 1/3 of the row
-      value_box(
-          title = "Pourcentage tumoral estimé",
-          style = "height: 370px;",
-          value = tags$div(
-            style = "font-size: 60px;",
-            textOutput(outputId = "mean_ui")
-          ),
-          showcase = tags$img(src = "test-tube.PNG", height = "150px")
-        )
-      
-    ),
-    # Column for the plot content
-    column(
-      width = 8,  # 2/3 of the row
-      card(
-        width = 12,
-        style = "height: 370px;", 
-        full_screen = TRUE,
-        uiOutput(outputId = "plot_ui")
-      )
-    )  
+    uiOutput("main_content")
   )
 )
 
@@ -93,8 +66,69 @@ generate_boxplot <- function(data) {
 
 server <- function(input, output) {
   
+  
   # Initialize a reactive value to hold the processed data
   processed_data <- reactiveVal(NULL)  
+  current_page <- reactiveVal("main")  # Start on the main page
+  
+  # Navigate to Page 2
+  observeEvent(input$navigate_to_page2, {
+    current_page("page2")  # Change to page 2
+  })
+  
+  # Render the main content
+  output$main_content <- renderUI({
+    if (current_page() == "main") {
+      # Main page content
+      fluidRow(
+        # Column for the table UI
+        column(
+          width = 12,
+          card(
+            width = 12,
+            style = "height: 500px; overflow-y: auto;",
+            DTOutput("table_ui") 
+          ),
+        ),
+        # Column for the locus selection
+        column(
+          width = 4,  # 1/3 of the row
+          value_box(
+            title = "Pourcentage tumoral estimé",
+            style = "height: 370px;",
+            value = tags$div(
+              style = "font-size: 60px;",
+              textOutput(outputId = "mean_ui")
+            ),
+            showcase = tags$img(src = "test-tube.PNG", height = "150px")
+          )
+        ),
+        # Column for the plot content
+        column(
+          width = 8,  # 2/3 of the row
+          card(
+            width = 12,
+            style = "height: 370px;", 
+            full_screen = TRUE,
+            uiOutput(outputId = "plot_ui")
+          )
+        )  
+      )
+    } else {
+      # New page content
+      fluidRow(
+        column(
+          width = 12,
+          card(
+            width = 12,
+            style = "height: 500px; overflow-y: auto;",
+            h3("Welcome to Page 2"),
+            p("This is the content for the second page.")
+          )
+        )
+      )
+    }
+  })
   
   # Load and process data when files are uploaded
   observeEvent(c(input$constit, input$tum), {
