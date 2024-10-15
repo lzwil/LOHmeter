@@ -27,9 +27,8 @@ ui <- page_sidebar(
       card(
         width = 12,
         style = "height: 500px; overflow-y: auto;",
-        DTOutput("table_ui"),  
-        showcase = tags$img(src = "test-tube.PNG", height = "150px")
-      )
+        DTOutput("table_ui") 
+      ),
     ),
     # Column for the locus selection
     column(
@@ -72,19 +71,28 @@ generate_boxplot <- function(data) {
     )
   
   ggplot(data_for_plot, aes(x = LOH, y = `%tumoral`, fill = LOH)) +
-    geom_boxplot(varwidth = TRUE) +  
+    geom_boxplot(varwidth = TRUE, outlier.shape = NA, linetype = 1) +  
     geom_point(data = summary_stats, aes(x = LOH, y = Mean), color = "#4D4D4D", size = 3, shape = 20, show.legend = FALSE) +
     geom_text(data = summary_stats, aes(x = LOH, y = Mean, label = paste("Mean:", round(Mean, 2), "±", round(SD, 2))), 
-              vjust = -0.5, hjust = 1, color = "#4D4D4D", size = 3.5) +  
+              vjust = -0.5, hjust = 1, color = "#4D4D4D", size = 5, fontface = "bold") +  
     labs(title = "Pourcentage estimé de cellules tumorales par classification LOH",
          x = NULL,
          y = "% Tumoral") +
     scale_fill_manual(values = c("CIS" = "#d4f1bc", "TRANS" = "#ffcccb")) +
-    theme_minimal() +
-    ylim(0, 100)  # Set y-axis limits from 0 to 100
+    theme_minimal() + 
+    theme(
+      legend.text = element_text(size = 13), 
+      legend.title = element_text(size = 15),  
+      axis.text = element_text(size = 13), 
+      axis.title.y = element_text(size = 15),
+      axis.text.y = element_text(size = 13),
+      plot.title = element_text(size = 18)
+    ) +
+    ylim(0, 100) 
 }
 
 server <- function(input, output) {
+  
   # Initialize a reactive value to hold the processed data
   processed_data <- reactiveVal(NULL)  
   
@@ -149,18 +157,9 @@ server <- function(input, output) {
   output$table_ui <- renderDT({
     req(processed_data())  # Ensure data is available
     result <- processed_data()
+    df <- result$cons_tum
     
-    # Check if cons_tum is NULL or has zero rows
-    if (is.null(result$cons_tum)) {
-      datatable(
-        data.frame(Message = "Aucune donnée disponible. Veuillez télécharger les fichiers."),
-        options = list(dom = 't', paging = FALSE),
-        escape = FALSE,
-        rownames = FALSE
-      )
-    
-      
-    } else {
+   
       # Filter the data if the box is checked
       filtered_data <- result$cons_tum
       if (input$filter_rows) {
@@ -168,7 +167,7 @@ server <- function(input, output) {
           filter(LOH %in% c("CIS", "TRANS"))
       }
     
-      datatable(
+      return(datatable(
         filtered_data,
         options = list(
           pageLength = 50,
@@ -189,9 +188,9 @@ server <- function(input, output) {
         ),
         class = 'display nowrap compact stripe hover row-border order-column',
         escape = FALSE
-      )
+      ))
     }
-  })
+  )
   
   # Render the plot or placeholder
   output$plot_ui <- renderUI({
@@ -228,7 +227,6 @@ server <- function(input, output) {
       filtered_data <- result$cons_tum %>%
         filter(Gene.cons %in% input$selected_gene)
     }
-    View(filtered_data)
     # Generate the plot using the reusable function
     generate_boxplot(filtered_data)
   })

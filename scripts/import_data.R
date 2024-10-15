@@ -27,11 +27,13 @@ import_data <- function(constit, tumoral) {
   # Filter out the unwanted columns and genes
   constit_filtered <- constit %>%
     filter(!Gene %in% excluded_genes) %>%
-    select(all_of(retained_columns))
+    select(all_of(retained_columns)) %>%
+    filter(!grepl('CNV', Coverage))
   
   tumoral_filtered <- tumoral %>%
     filter(!Gene %in% excluded_genes) %>%
-    select(all_of(retained_columns))
+    select(all_of(retained_columns))   %>%
+    filter(!grepl('CNV', Coverage))
   
   # Merge the tables
   cons_tum = left_join(constit_filtered, tumoral_filtered, by = "Pos.", suffix = c(".cons", ".tum"))
@@ -62,7 +64,7 @@ import_data <- function(constit, tumoral) {
     rename(
       VAF.cons = Coverage.cons,  # Rename Coverage.cons to VAF.cons
       VAF.tum = Coverage.tum      # Rename Coverage.tum to VAF.tum
-    )
+    ) 
   
   saveRDS(cons_tum, file = "cons_tum_cleaned.rds")
   
