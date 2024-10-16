@@ -12,7 +12,7 @@ library(here)
 library(stringr)
 
 import_data <- function(constit, tumoral) {
-
+  
   constit <- read_delim(file = constit, delim = "\t", na = "", trim_ws = TRUE)
   tumoral <- read_delim(file = tumoral, delim = "\t", na = "", trim_ws = TRUE)
   
@@ -37,7 +37,7 @@ import_data <- function(constit, tumoral) {
   
   # Table for the new tumoral variants
   unique_tumoral <- tumoral_filtered %>%
-    anti_join(constit_filtered, by = all_of(retained_columns)) %>% 
+    anti_join(constit_filtered, by = c("Pos.")) %>% 
     mutate(Pos. = str_extract(Pos., "chr[XY\\d]+:g\\.\\d+")) %>%
     arrange(desc(Pos.)) %>%
     mutate(
@@ -46,6 +46,7 @@ import_data <- function(constit, tumoral) {
       # Extract the position number from Pos.
       pos_num = as.numeric(str_extract(Pos., "(?<=\\.g\\.)[0-9]+"))
     )
+  
   unique_tumoral$Coverage <- as.character(unique_tumoral$Coverage)
   # Keep only the allele percentage and make a frequency instead
   unique_tumoral <- unique_tumoral %>%
@@ -88,8 +89,8 @@ import_data <- function(constit, tumoral) {
       VAF.tum = Coverage.tum      # Rename Coverage.tum to VAF.tum
     ) 
   
+  
   saveRDS(cons_tum, file = "cons_tum_cleaned.rds")
-  saveRDS(unique_tumoral, file = "unique_tumoral.rds")
   
 }
 

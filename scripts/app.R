@@ -5,6 +5,7 @@ library(dplyr)
 library(ggplot2)  # Make sure ggplot2 is loaded for plotting
 library(shiny)
 library(bsicons)
+library(bslib)
 source("import_data.R")
 source("analyse_data.R")
 
@@ -168,7 +169,7 @@ server <- function(input, output) {
                 "Sélectionner un ou plusieurs locus:", 
                 choices = genes, 
                 selected = "Tous les locus", 
-                multiple = TRUE,
+                multiple = TRUE
     )
   })
   
