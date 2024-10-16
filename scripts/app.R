@@ -14,7 +14,7 @@ ui <- navbarPage(
   collapsible = TRUE,
   title = tags$span(style = "font-size: 38px;", "LOHmeter"),
   tabPanel(
-    "Main Page",
+    "Evaluation du pourcentage tumoral",
     page_sidebar(
       sidebar = sidebar(
         fileInput(inputId = "constit", label = "Constitutionel"),
@@ -61,25 +61,24 @@ ui <- navbarPage(
       )
     )
   ),
-  tabPanel("Page 2", 
+  tabPanel("LOH ou non ?", 
            fluidRow(
-             # Set the fluidRow to use flexbox to fill available vertical space
              style = "display: flex",  # Make the row take the full viewport height
              column(
-               width = 4,  # First card will take 4/12 of the width
+               width = 5,  
                style = "display: flex; height: 100%;",  # Make the column take full height
                card(
-                 width = 12,  # Make the card take full width of the column
+                 width = 12, 
                  style = "flex: 1; overflow-y: auto; padding: 0;",  # Allow the card to grow and remove padding
                  h3("Welcome to Page 2"),
                  p("This is the content for the first card.")
                )
              ),
              column(
-               width = 8,  # Second card will take 8/12 of the width
+               width = 7,  
                style = "display: flex; flex-direction: column; height: 100%;",  # Make the column take full height
                card(
-                 width = 12,  # Make the card take full width of the column
+                 width = 12,
                  style = "flex: 1; overflow-y: auto; padding: 0;", 
                  DTOutput("table_uiTum") 
                )
@@ -242,7 +241,9 @@ server <- function(input, output) {
         autowidth = TRUE,
         scrollY = "400px",
         fixedHeader = TRUE,
-        order = list(0, 'asc')
+        order = list(0, 'asc'),
+        searching = FALSE,
+        lengthChange = FALSE
       ),
       class = 'display nowrap compact stripe hover row-border order-column',
       escape = FALSE
