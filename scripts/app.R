@@ -10,25 +10,30 @@ source("import_data.R")
 source("analyse_data.R")
 
 # Define UI for application
-ui <- page_sidebar(
-  title = tagList(
-    tags$h2("LOHmeter", style = "display: inline-block; margin-right: 20px;"),
-    actionButton(inputId = "navigate_to_page2", label = "Page 2")
+# Define UI for application
+ui <- tagList(
+  # Add a navigation bar with a larger title
+  navbarPage(
+    title = tags$span(style = "font-size: 35px;", "LOHmeter"),  # Increase the title size to 24px
+    tabPanel("Main Page"),  
+    tabPanel("Page 2")      
   ),
-  sidebar = sidebar(
-    fileInput(inputId = "constit", label = "Constitutionel"),
-    fileInput(inputId = "tum", label = "Tumoral"),
-    checkboxInput(inputId = "filter_rows", label = "Afficher uniquement les lignes CIS et TRANS", value = TRUE),  
-    uiOutput("delete_button_ui"),
-    uiOutput("gene_selector"),
-    # Add a button to navigate to the new page
-    actionButton(inputId = "navigate_to_page2", label = "Page 2")
-  ),
-  # Main content layout with side-by-side cards
-  fluidRow(
-    uiOutput("main_content")
+  page_sidebar(
+    sidebar = sidebar(
+      fileInput(inputId = "constit", label = "Constitutionel"),
+      fileInput(inputId = "tum", label = "Tumoral"),
+      checkboxInput(inputId = "filter_rows", label = "Afficher uniquement les lignes CIS et TRANS", value = TRUE),  
+      uiOutput("delete_button_ui"),
+      uiOutput("gene_selector")
+    ),
+    # Main content layout
+    fluidRow(
+      uiOutput("main_content")
+    )
   )
 )
+
+
 
 # Function to generate the box plot
 generate_boxplot <- function(data) {
