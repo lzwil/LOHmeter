@@ -35,7 +35,29 @@ import_data <- function(constit, tumoral) {
     select(all_of(retained_columns))   %>%
     filter(!grepl('CNV', Coverage))
   
-  # Merge the tables
+  # Table for the new tumoral variants
+  unique_tumoral <- tumoral_filtered %>%
+    anti_join(constit_filtered, by = all_of(retained_columns)) %>% 
+    mutate(Pos. = str_extract(Pos., "chr[XY\\d]+:g\\.\\d+")) %>%
+    arrange(desc(Pos.)) %>%
+    mutate(
+      # Extract the numeric part of the chromosome, handling cases like chrX, chrY, etc.
+      chrom_num = as.numeric(str_extract(Pos., "(?<=chr)[0-9]+")),
+      # Extract the position number from Pos.
+      pos_num = as.numeric(str_extract(Pos., "(?<=\\.g\\.)[0-9]+"))
+    )
+  unique_tumoral$Coverage <- as.character(unique_tumoral$Coverage)
+  # Keep only the allele percentage and make a frequency instead
+  unique_tumoral <- unique_tumoral %>%
+    mutate(
+      Coverage = sapply(strsplit(Coverage, "%"), function(x) as.numeric(x[1])),
+      Coverage = Coverage / 100,  
+    ) %>%
+    rename(
+      VAF = Coverage,
+    ) 
+  
+  # Merge the tables for the constit/tumoral comparison
   cons_tum = left_join(constit_filtered, tumoral_filtered, by = "Pos.", suffix = c(".cons", ".tum"))
   
   # Keep the genomic position and order by it
@@ -67,6 +89,7 @@ import_data <- function(constit, tumoral) {
     ) 
   
   saveRDS(cons_tum, file = "cons_tum_cleaned.rds")
+  saveRDS(unique_tumoral, file = "unique_tumoral.rds")
   
 }
 

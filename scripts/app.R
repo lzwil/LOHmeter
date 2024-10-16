@@ -1,4 +1,3 @@
-library(bslib)
 library(DT)
 library(fontawesome)  # Optional: for additional icons
 library(here)
@@ -10,29 +9,84 @@ source("import_data.R")
 source("analyse_data.R")
 
 # Define UI for application
-# Define UI for application
-ui <- tagList(
-  # Add a navigation bar with a larger title
-  navbarPage(
-    title = tags$span(style = "font-size: 35px;", "LOHmeter"),  # Increase the title size to 24px
-    tabPanel("Main Page"),  
-    tabPanel("Page 2")      
-  ),
-  page_sidebar(
-    sidebar = sidebar(
-      fileInput(inputId = "constit", label = "Constitutionel"),
-      fileInput(inputId = "tum", label = "Tumoral"),
-      checkboxInput(inputId = "filter_rows", label = "Afficher uniquement les lignes CIS et TRANS", value = TRUE),  
-      uiOutput("delete_button_ui"),
-      uiOutput("gene_selector")
-    ),
-    # Main content layout
-    fluidRow(
-      uiOutput("main_content")
+ui <- navbarPage(
+  collapsible = TRUE,
+  title = tags$span(style = "font-size: 38px;", "LOHmeter"),
+  tabPanel(
+    "Main Page",
+    page_sidebar(
+      sidebar = sidebar(
+        fileInput(inputId = "constit", label = "Constitutionel"),
+        fileInput(inputId = "tum", label = "Tumoral"),
+        checkboxInput(inputId = "filter_rows", label = "Afficher uniquement les lignes CIS et TRANS", value = TRUE),  
+        uiOutput("delete_button_ui"),
+        uiOutput("gene_selector")
+      ),
+      fluidRow(
+        fluidRow(
+          # Column for the table 
+          column(
+            width = 12,
+            card(
+              width = 12,
+              style = "height: 500px; overflow-y: auto;",
+              DTOutput("table_ui") 
+            )
+          ),
+          # Column for the %tumoral
+          column(
+            width = 4, 
+            value_box(
+              title = "Pourcentage tumoral estimé",
+              style = "height: 370px;",
+              value = tags$div(
+                style = "font-size: 60px;",
+                textOutput(outputId = "mean_ui")
+              ),
+              showcase = tags$img(src = "test-tube.PNG", height = "150px")
+            )
+          ),
+          # Column for the plot content
+          column(
+            width = 8,  # 2/3 of the row
+            card(
+              width = 12,
+              style = "height: 370px",
+              full_screen = TRUE,
+              uiOutput(outputId = "plot_ui")
+            )
+          )  
+        )
+      )
     )
+  ),
+  tabPanel("Page 2", 
+           fluidRow(
+             # Set the fluidRow to use flexbox to fill available vertical space
+             style = "display: flex",  # Make the row take the full viewport height
+             column(
+               width = 4,  # First card will take 4/12 of the width
+               style = "display: flex; height: 100%;",  # Make the column take full height
+               card(
+                 width = 12,  # Make the card take full width of the column
+                 style = "flex: 1; overflow-y: auto; padding: 0;",  # Allow the card to grow and remove padding
+                 h3("Welcome to Page 2"),
+                 p("This is the content for the first card.")
+               )
+             ),
+             column(
+               width = 8,  # Second card will take 8/12 of the width
+               style = "display: flex; flex-direction: column; height: 100%;",  # Make the column take full height
+               card(
+                 width = 12,  # Make the card take full width of the column
+                 style = "flex: 1; overflow-y: auto; padding: 0;",  # Allow the card to grow and remove padding
+                 h3("Welcome to Page 2"),
+                 p("This is the content for the second card.")
+               )
+             )
+           )
   )
 )
-
 
 
 # Function to generate the box plot
@@ -74,66 +128,6 @@ server <- function(input, output) {
   
   # Initialize a reactive value to hold the processed data
   processed_data <- reactiveVal(NULL)  
-  current_page <- reactiveVal("main")  # Start on the main page
-  
-  # Navigate to Page 2
-  observeEvent(input$navigate_to_page2, {
-    current_page("page2")  # Change to page 2
-  })
-  
-  # Render the main content
-  output$main_content <- renderUI({
-    if (current_page() == "main") {
-      # Main page content
-      fluidRow(
-        # Column for the table UI
-        column(
-          width = 12,
-          card(
-            width = 12,
-            style = "height: 500px; overflow-y: auto;",
-            DTOutput("table_ui") 
-          ),
-        ),
-        # Column for the locus selection
-        column(
-          width = 4,  # 1/3 of the row
-          value_box(
-            title = "Pourcentage tumoral estimé",
-            style = "height: 370px;",
-            value = tags$div(
-              style = "font-size: 60px;",
-              textOutput(outputId = "mean_ui")
-            ),
-            showcase = tags$img(src = "test-tube.PNG", height = "150px")
-          )
-        ),
-        # Column for the plot content
-        column(
-          width = 8,  # 2/3 of the row
-          card(
-            width = 12,
-            style = "height: 370px;", 
-            full_screen = TRUE,
-            uiOutput(outputId = "plot_ui")
-          )
-        )  
-      )
-    } else {
-      # New page content
-      fluidRow(
-        column(
-          width = 12,
-          card(
-            width = 12,
-            style = "height: 500px; overflow-y: auto;",
-            h3("Welcome to Page 2"),
-            p("This is the content for the second page.")
-          )
-        )
-      )
-    }
-  })
   
   # Load and process data when files are uploaded
   observeEvent(c(input$constit, input$tum), {
@@ -198,37 +192,37 @@ server <- function(input, output) {
     result <- processed_data()
     df <- result$cons_tum
     
-   
-      # Filter the data if the box is checked
-      filtered_data <- result$cons_tum
-      if (input$filter_rows) {
-        filtered_data <- filtered_data %>%
-          filter(LOH %in% c("CIS", "TRANS"))
-      }
     
-      return(datatable(
-        filtered_data,
-        options = list(
-          pageLength = 50,
-          lengthMenu = c(10, 25, 50, 100),
-          autowidth = TRUE,
-          scrollY = "400px",
-          fixedHeader = TRUE,
-          order = list(0, 'asc'),  
-          rowCallback = JS(
-            "function(row, data, index) {",
-            "  if (data[6] == 'CIS') {",  
-            "    $('td', row).css('background-color', '#d4f1bc');",  
-            "  } else if (data[6] == 'TRANS') {",  
-            "    $('td', row).css('background-color', '#ffcccb');",  
-            "  }",
-            "}"
-          )
-        ),
-        class = 'display nowrap compact stripe hover row-border order-column',
-        escape = FALSE
-      ))
+    # Filter the data if the box is checked
+    filtered_data <- result$cons_tum
+    if (input$filter_rows) {
+      filtered_data <- filtered_data %>%
+        filter(LOH %in% c("CIS", "TRANS"))
     }
+    
+    return(datatable(
+      filtered_data,
+      options = list(
+        pageLength = 50,
+        lengthMenu = c(10, 25, 50, 100),
+        autowidth = TRUE,
+        scrollY = "400px",
+        fixedHeader = TRUE,
+        order = list(0, 'asc'),  
+        rowCallback = JS(
+          "function(row, data, index) {",
+          "  if (data[6] == 'CIS') {",  
+          "    $('td', row).css('background-color', '#d4f1bc');",  
+          "  } else if (data[6] == 'TRANS') {",  
+          "    $('td', row).css('background-color', '#ffcccb');",  
+          "  }",
+          "}"
+        )
+      ),
+      class = 'display nowrap compact stripe hover row-border order-column',
+      escape = FALSE
+    ))
+  }
   )
   
   # Render the plot or placeholder
@@ -245,10 +239,10 @@ server <- function(input, output) {
           alt = "Loading plot placeholder"
         )
       )
-
+      
     } else {
       # Show the plot when data is ready
-      plotOutput(outputId = "plot", height = "100%")  
+      plotOutput(outputId = "plot")  
     }
   })
   
@@ -269,6 +263,7 @@ server <- function(input, output) {
     # Generate the plot using the reusable function
     generate_boxplot(filtered_data)
   })
+  
   
   # Update table and plot when rows are deleted
   observeEvent(input$delete_rows, {
