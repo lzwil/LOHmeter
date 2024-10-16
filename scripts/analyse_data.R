@@ -2,7 +2,6 @@
 # et déduction du pourcentage tumoral de l'échantillon
 # Léo Zwilling
 # APHM
-# analyse_data.Rdata:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADbElEQVR4XuWXW0gUURjHfez22MyIiTPjQ82M0UtQQRHRjS5iJUmkkC+9daGrZVIqVkYWZWlKRhezVoVMM21bdVdNIYIuGERYYARKEUhCuVkP0/eN7OHM5647u81bP/gQj3O+//+c852LCQmEuanafElOWy2lGGvEVH2tqOrrRFVbLyhpGwRZ3zRX1jdLqVq6pBoZoqJvFWUtU1DTtguqkSUp+g5J0XYmqsYSRVFm0NyOQHHzH2hsajG7n/U1gZllcZnAkdOksYAGgsGg6e/paxZTFixPTk6eSTWmBaedJo0FNICgiY6u7lZB1VfGZALXm+SMiZABBE34urrbEhVtVVLS4llUKyzywhXbWnrfmyequ8zsogdmRp7H+om/Y3tw4g8nNxXeAIImvB3+JzizUU1sOebJTj9SN4qikSK35KHZ8/qTTYSHGkDQRJvX58PZjWgCkhdSsenC0/GW6liEM4CgidZ2b6cgGxsladFsmziOnE/+8fM3WwwMjpiNvjfmruLJJQlF4NUQ1YloAEETj9q9ATxHmHhWYeMcSPaFT4yM//rNDIyO/bTahr9+txnIKWoyf4xP8BqWgdIL5VGDGcjIq9/LJw0ZQGG+DWcBKah8amt/3D/I6ztCULUznAGPz4kB/4sPVnvprYCt/VRNgEvtDDjCz/EGhsMZwGlv631nxfOByarHNvptbkkzn9sRcH+U8QYmaNJw4BLQ6cfIzG+gn0ZFVI2LvIERmhQJLUFo9BX1/VPEMeKZAUHRL/MGpq2BfWWt1o7A6afbEONkjZ+kj44ka1c4A9F3AdYBgoVIv41nF8Abo4IZiHQO8AZw5KGzgK+DcOeAE2AXXGMGEJiFHN4AbjVacLgUtN3/cojmdoSoaNU2A5Mm3LkLnCDK+nWqb4EzkX6odoyK8YG3Ybg7IBbgkXKDajPm6UsP4L2fX9UZ13vACfBwvUl1GfDy3UM7uA0U4W2qyxAUYz/t4DZQA7VUlwHP6YO0g9uAgbtUlwEXxWHawW1ExbhHdRlwSh2lHdwGauA+1WUIinacdnAbuIzqqS5DkvUC2sFtoM4aqC4D/wGFo7IQ1qkYDozTkmKcxRcMFM55vMfB/SXYx+WSbFyF5aqEv1Xh0YqnGx4wuMdxm0HcwWqHp3gdTjn08+DIUVxS9d1U9//lLxSyAwwsz5wdAAAAAElFTkSuQmCC
 
 library(dplyr)
 library(gt)
@@ -51,8 +50,7 @@ analyse_data <- function(import_rds) {
   
   
   
-  # Create a gt table with color formatting
-  # Apply conditional color formatting row by row
+  # Select relevant columns
   cons_tum <- cons_tum %>%
     select(Pos., Gene.cons, c..HGVS.cons, VAF.cons, VAF.tum, LOH, `%tumoral`, chrom_num, pos_num) %>%
     # Sort by chrom_num first, then by pos_num

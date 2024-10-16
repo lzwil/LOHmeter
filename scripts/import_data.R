@@ -52,11 +52,16 @@ import_data <- function(constit, tumoral) {
   unique_tumoral <- unique_tumoral %>%
     mutate(
       Coverage = sapply(strsplit(Coverage, "%"), function(x) as.numeric(x[1])),
-      Coverage = Coverage / 100,  
+      Coverage = ifelse(is.na(Coverage), 0, Coverage) / 100 
     ) %>%
     rename(
-      VAF = Coverage,
-    ) 
+      VAF = Coverage
+    ) %>%
+    select(Pos., Gene, c..HGVS, VAF, chrom_num, pos_num) %>%
+    # Sort by chrom_num first, then by pos_num
+    arrange(chrom_num, pos_num) %>%
+    # Remove temporary sorting columns
+    select(-chrom_num, -pos_num)
   
   # Merge the tables for the constit/tumoral comparison
   cons_tum = left_join(constit_filtered, tumoral_filtered, by = "Pos.", suffix = c(".cons", ".tum"))
@@ -70,7 +75,7 @@ import_data <- function(constit, tumoral) {
       chrom_num = as.numeric(str_extract(Pos., "(?<=chr)[0-9]+")),
       # Extract the position number from Pos.
       pos_num = as.numeric(str_extract(Pos., "(?<=\\.g\\.)[0-9]+"))
-    )
+    ) 
   
   # Convert columns to character if they are not already
   cons_tum$Coverage.cons <- as.character(cons_tum$Coverage.cons)
@@ -91,7 +96,5 @@ import_data <- function(constit, tumoral) {
   
   
   saveRDS(cons_tum, file = "cons_tum_cleaned.rds")
-  
+  saveRDS(unique_tumoral, file = "unique_tumoral.rds")
 }
-
-

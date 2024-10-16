@@ -1,4 +1,4 @@
-library(DT)
+library(DT)  
 library(fontawesome)  # Optional: for additional icons
 library(here)
 library(dplyr)
@@ -80,9 +80,8 @@ ui <- navbarPage(
                style = "display: flex; flex-direction: column; height: 100%;",  # Make the column take full height
                card(
                  width = 12,  # Make the card take full width of the column
-                 style = "flex: 1; overflow-y: auto; padding: 0;",  # Allow the card to grow and remove padding
-                 h3("Welcome to Page 2"),
-                 p("This is the content for the second card.")
+                 style = "flex: 1; overflow-y: auto; padding: 0;", 
+                 DTOutput("table_uiTum") 
                )
              )
            )
@@ -129,6 +128,7 @@ server <- function(input, output) {
   
   # Initialize a reactive value to hold the processed data
   processed_data <- reactiveVal(NULL)  
+  result_tumoral <- reactiveVal(NULL)
   
   # Load and process data when files are uploaded
   observeEvent(c(input$constit, input$tum), {
@@ -138,9 +138,13 @@ server <- function(input, output) {
     import_data(constit = input$constit$datapath, tumoral = input$tum$datapath)
     req(file.exists("cons_tum_cleaned.rds"))
     
-    # Analyze the data and set it in reactive value
+    # Analyze the data 
     result <- analyse_data("cons_tum_cleaned.rds")
     processed_data(result)  # Store the result in the reactive value
+    
+    # Store the unique_tumoral data in reactive value
+    req(file.exists("unique_tumoral.rds"))
+    result_tumoral(readRDS(file = "unique_tumoral.rds"))
   })
   
   # Delete button
@@ -219,6 +223,26 @@ server <- function(input, output) {
           "  }",
           "}"
         )
+      ),
+      class = 'display nowrap compact stripe hover row-border order-column',
+      escape = FALSE
+    ))
+  }
+  )
+
+  # Render the DataTable
+  output$table_uiTum <- renderDT({
+    req(result_tumoral())  # Ensure data is available
+    
+    return(datatable(
+      result_tumoral(),
+      options = list(
+        pageLength = 50,
+        lengthMenu = c(10, 25, 50, 100),
+        autowidth = TRUE,
+        scrollY = "400px",
+        fixedHeader = TRUE,
+        order = list(0, 'asc')
       ),
       class = 'display nowrap compact stripe hover row-border order-column',
       escape = FALSE
