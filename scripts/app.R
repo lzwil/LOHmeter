@@ -63,25 +63,26 @@ ui <- navbarPage(
   ),
   tabPanel("LOH ou non ?", 
            fluidRow(
-             style = "display: flex",  # Make the row take the full viewport height
+             style = "display: flex",  
              column(
                width = 5,  
-               style = "display: flex; height: 100%;",  # Make the column take full height
+               style = "display: flex; height: 100%;",  
                card(
                  width = 12, 
-                 style = "flex: 1; overflow-y: auto; padding: 0;",  # Allow the card to grow and remove padding
+                 style = "flex: 1; overflow-y: auto; padding: 0;",  
                  h3("Welcome to Page 2"),
                  p("This is the content for the first card.")
                )
              ),
              column(
                width = 7,  
-               style = "display: flex; flex-direction: column; height: 100%;",  # Make the column take full height
+               style = "display: flex; flex-direction: column; height: 100%;",  
                card(
                  width = 12,
                  style = "flex: 1; overflow-y: auto; padding: 0;", 
-                 DTOutput("table_uiTum") 
-               )
+                 DTOutput("table_uiTum")
+               ),
+               checkboxInput(inputId = "new_variants", label = "Nouveaux Variants", value = TRUE)
              )
            )
   )
@@ -230,26 +231,62 @@ server <- function(input, output) {
   )
 
   # Render the DataTable
-  output$table_uiTum <- renderDT({
-    req(result_tumoral())  # Ensure data is available
-    
-    return(datatable(
-      result_tumoral(),
-      options = list(
-        pageLength = 50,
-        lengthMenu = c(10, 25, 50, 100),
-        autowidth = TRUE,
-        scrollY = "400px",
-        fixedHeader = TRUE,
-        order = list(0, 'asc'),
-        searching = FALSE,
-        lengthChange = FALSE
-      ),
-      class = 'display nowrap compact stripe hover row-border order-column',
-      escape = FALSE
-    ))
-  }
-  )
+  observe({
+    if (input$new_variants) {
+      output$table_uiTum <- renderDT({
+        req(result_tumoral())  # Ensure data is available
+        return(datatable(
+          result_tumoral(),
+          options = list(
+            pageLength = 50,
+            lengthMenu = c(10, 25, 50, 100),
+            autowidth = TRUE,
+            scrollY = "400px",
+            fixedHeader = TRUE,
+            order = list(0, 'asc'),
+            searching = FALSE,
+            lengthChange = FALSE
+          ),
+          class = 'display nowrap compact stripe hover row-border order-column',
+          escape = FALSE
+        ))
+      })
+    } else {
+      output$table_uiTum <- renderDT({
+        req(processed_data())  # Ensure data is available
+        result <- processed_data()
+        df <- result$cons_tum
+        filtered_data <- result$cons_tum
+        if (input$filter_rows) {
+          filtered_data <- filtered_data %>%
+            filter(LOH %in% c("CIS", "TRANS"))
+        }
+        return(datatable(
+          filtered_data,
+          options = list(
+            pageLength = 50,
+            lengthMenu = c(10, 25, 50, 100),
+            autowidth = TRUE,
+            scrollY = "400px",
+            fixedHeader = TRUE,
+            order = list(0, 'asc'),
+            rowCallback = JS(
+              "function(row, data, index) {",
+              "  if (data[6] == 'CIS') {",
+              "    $('td', row).css('background-color', '#d4f1bc');",
+              "  } else if (data[6] == 'TRANS') {",
+              "    $('td', row).css('background-color', '#ffcccb');",
+              "  }",
+              "}"
+            )
+          ),
+          class = 'display nowrap compact stripe hover row-border order-column',
+          escape = FALSE
+        ))
+      })
+    }
+  })
+
   
   # Render the plot or placeholder
   output$plot_ui <- renderUI({
@@ -269,6 +306,8 @@ server <- function(input, output) {
     } else {
       # Show the plot when data is ready
       plotOutput(outputId = "plot")  
+      
+      
     }
   })
   
@@ -283,6 +322,7 @@ server <- function(input, output) {
     if (any("Tous les locus" %in% input$selected_gene)){
       filtered_data <- result$cons_tum
     } else {
+      
       filtered_data <- result$cons_tum %>%
         filter(Gene.cons %in% input$selected_gene)
     }
