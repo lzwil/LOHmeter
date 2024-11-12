@@ -80,14 +80,15 @@ analyse_data <- function(import_rds) {
     summarise(Mean = mean(`%tumoral`, na.rm = TRUE)) %>%
     pull(Mean)
   
-  #calculate the VAFtheoric
-  if (cons_tum$LOH == "CIS") {
-    cons_tum %>%
-      mutate(VAFtheoric = (100 - `%tumoral`) / (200 - `%tumoral`))
-  } else if (cons_tum$LOH == "TRANS") {
-    cons_tum %>% 
-      mutate(VAFtheoric = 100 / (200 - `%tumoral`))
-  }
+  # Calculate `VAFtheoric` based on LOH classification
+  cons_tum <- cons_tum %>%
+    mutate(
+      VAFtheoric = case_when(
+        LOH == "CIS" ~ (100 - `%tumoral`) / (200 - `%tumoral`),
+        LOH == "TRANS" ~ 100 / (200 - `%tumoral`),
+        TRUE ~ NA_real_
+      )
+    )
 
   
   # Create the boxplot
