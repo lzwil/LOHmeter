@@ -65,13 +65,12 @@ ui <- navbarPage(
            fluidRow(
              style = "display: flex",  
              column(
-               width = 5,  
-               style = "display: flex; height: 100%;",  
+               width = 5,
                card(
-                 width = 12, 
-                 style = "flex: 1; overflow-y: auto; padding: 0;",  
-                 h3("Welcome to Page 2"),
-                 p("This is the content for the first card.")
+                 width = 12,
+                 style = "height: 370px",
+                 full_screen = TRUE,
+                 textOutput(outputId = "concluPlot_ui")
                )
              ),
              column(
@@ -82,7 +81,7 @@ ui <- navbarPage(
                  style = "flex: 1; overflow-y: auto; padding: 0;", 
                  DTOutput("table_uiTum")
                ),
-               checkboxInput(inputId = "new_variants", label = "Nouveaux Variants", value = TRUE)
+               checkboxInput(inputId = "new_variants", label = "Nouveaux Variants Somatiques", value = TRUE)
              )
            )
   )
@@ -177,19 +176,76 @@ server <- function(input, output) {
     )
   })
   
-  output$mean_ui <- renderText({
+  
+  # Reactive expression for the tumor percentage
+  mean_tumor_percentage <- reactive({
     req(processed_data())
-    result <- processed_data()
-    
-    # Compute the mean of the '%tumoral' column
-    mean_value <- result$cons_tum %>%
+    processed_data()$cons_tum %>%
       summarise(Mean = mean(`%tumoral`, na.rm = TRUE)) %>%
-      pull(Mean) # Extract the numeric value of the mean
-    
-    # Format the mean value as a string with appropriate text
-    paste0(round(mean_value, 2), "%")  # Display as percentage
+      pull(Mean)
   })
   
+  # Reactive expression for the tumor percentage
+  mean_tumor_percentageTRANS <- reactive({
+    req(processed_data())
+    mean_TRANS_data <- processed_data()$cons_tum %>% filter(LOH == "TRANS")
+    
+    mean_TRANS_data %>%
+      summarise(Mean = mean(`%tumoral`, na.rm = TRUE)) %>%
+      pull(Mean)
+  })
+  
+  # Reactive expression for the tumor percentage
+  mean_tumor_percentageCIS <- reactive({
+    req(processed_data())
+    mean_cis_data <- processed_data()$cons_tum %>% filter(LOH == "CIS")
+    
+    mean_cis_data %>%
+      summarise(Mean = mean(`%tumoral`, na.rm = TRUE)) %>%
+      pull(Mean)
+  })
+  
+  # Reactive expression for the standard deviation of %tumoral for CIS rows
+  sd_tumor_percentageCIS <- reactive({
+    req(processed_data())
+    cis_data <- processed_data()$cons_tum %>% filter(LOH == "CIS")
+    
+    # Ensure there are rows with LOH == "CIS"
+    req(nrow(cis_data) > 0)  # Proceed only if there are matching rows
+    
+    cis_data %>%
+      summarise(SD = sd(`%tumoral`, na.rm = TRUE)) %>%
+      pull(SD)
+  })
+  
+  # Reactive expression for the standard deviation of %tumoral for CIS rows
+  sd_tumor_percentageTRANS <- reactive({
+    req(processed_data())
+    trans_data <- processed_data()$cons_tum %>% filter(LOH == "TRANS")
+    
+    # Ensure there are rows with LOH == "CIS"
+    req(nrow(trans_data) > 0)  # Proceed only if there are matching rows
+    
+    trans_data %>%
+      summarise(SD = sd(`%tumoral`, na.rm = TRUE)) %>%
+      pull(SD)
+  })
+  
+  output$concluPlot_ui <- renderText(
+    paste0(sd_tumor_percentageCIS(), sd_tumor_percentageTRANS(), mean_tumor_percentageCIS(), mean_tumor_percentageTRANS())
+  )
+  
+
+#  VAFloh <- case_when(
+#    LOH == "CIS" ~ (100 - mean_tumor_percentage) / (200 - mean_tumor_percentage),
+#    LOH == "TRANS" ~ 100 / (200 - mean_tumor_percentage),
+#    TRUE ~ NA_real_  # Default case for unmatched values, change if a default is desired
+#  )
+  
+  
+  output$mean_ui <- renderText({
+    paste0(round(mean_tumor_percentage(), 2), "%")  # Display as percentage
+  })
   
   # Render the DataTable
   output$table_ui <- renderDT({

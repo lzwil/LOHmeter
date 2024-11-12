@@ -13,7 +13,7 @@ analyse_data <- function(import_rds) {
   # Load the cleaned data
   cons_tum <- readRDS(file = import_rds)
 
-  # Normalise for the heterozygous in tum relaive to constit
+  # Normalise for the heterozygous in tum relative to constit
   cons_tum <- cons_tum %>%
     mutate(
       VAF.tum = round(
@@ -56,7 +56,8 @@ analyse_data <- function(import_rds) {
     # Sort by chrom_num first, then by pos_num
     arrange(chrom_num, pos_num) %>%
     # Remove temporary sorting columns
-    select(-chrom_num, -pos_num)
+    select(-chrom_num, -pos_num) %>%
+    mutate(`%tumoral` = round(`%tumoral`, 2))
   
     
   
@@ -78,6 +79,15 @@ analyse_data <- function(import_rds) {
     filter(LOH %in% c("CIS", "TRANS")) %>%
     summarise(Mean = mean(`%tumoral`, na.rm = TRUE)) %>%
     pull(Mean)
+  
+  #calculate the VAFtheoric
+  if (cons_tum$LOH == "CIS") {
+    cons_tum %>%
+      mutate(VAFtheoric = (100 - `%tumoral`) / (200 - `%tumoral`))
+  } else if (cons_tum$LOH == "TRANS") {
+    cons_tum %>% 
+      mutate(VAFtheoric = 100 / (200 - `%tumoral`))
+  }
 
   
   # Create the boxplot
@@ -97,6 +107,8 @@ analyse_data <- function(import_rds) {
     filter(LOH %in% c("CIS", "TRANS")) %>%
     summarise(Mean = mean(`%tumoral`, na.rm = TRUE)) %>%
     pull(Mean)
+  
+
   
   return(list(cons_tum = cons_tum, boxplot = boxplot))
 }
