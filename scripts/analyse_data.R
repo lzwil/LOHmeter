@@ -80,23 +80,13 @@ analyse_data <- function(import_rds) {
     summarise(Mean = mean(`%tumoral`, na.rm = TRUE)) %>%
     pull(Mean)
   
-  # Calculate `VAFtheoric` based on LOH classification
-  cons_tum <- cons_tum %>%
-    mutate(
-      VAFtheoric = case_when(
-        LOH == "CIS" ~ (100 - `%tumoral`) / (200 - `%tumoral`),
-        LOH == "TRANS" ~ 100 / (200 - `%tumoral`),
-        TRUE ~ NA_real_
-      )
-    )
-
   
   # Create the boxplot
   boxplot <- ggplot(data_for_plot, aes(x = LOH, y = `%tumoral`, fill = LOH)) +
     geom_boxplot(varwidth = TRUE) +  # No need for fill=LOH here, it's already set in aes()
     geom_point(data = summary_stats, aes(x = LOH, y = Mean), color = "#4D4D4D", size = 3, shape = 20, show.legend = FALSE) +
     geom_text(data = summary_stats, aes(x = LOH, y = Mean, label = paste("Mean:", round(Mean, 2), "±", round(SD, 2))), 
-              vjust = -0.5, hjust = 1, color = "#4D4D4D", size = 3.5) +  
+              vjust = -1.5, hjust = 0.5, color = "#4D4D4D", size = 3.5) +  
     labs(title = "Pourcentage estimé de cellules tumorales par classification LOH",
          x = NULL,
          y = "% Tumoral") +

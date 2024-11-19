@@ -105,7 +105,7 @@ generate_boxplot <- function(data) {
     geom_boxplot(varwidth = TRUE, outlier.shape = NA, linetype = 1) +  
     geom_point(data = summary_stats, aes(x = LOH, y = Mean), color = "#4D4D4D", size = 3, shape = 20, show.legend = FALSE) +
     geom_text(data = summary_stats, aes(x = LOH, y = Mean, label = paste("Mean:", round(Mean, 2), "±", round(SD, 2))), 
-              vjust = -0.5, hjust = 1, color = "#4D4D4D", size = 5, fontface = "bold") +  
+              vjust = -2, hjust = 1.1, color = "#4D4D4D", size = 5, fontface = "bold") +  
     labs(title = "Pourcentage estimé de cellules tumorales par classification LOH",
          x = NULL,
          y = "% Tumoral") +
@@ -232,16 +232,10 @@ server <- function(input, output) {
   })
   
   output$concluPlot_ui <- renderText(
-    paste0(sd_tumor_percentageCIS(), sd_tumor_percentageTRANS(), mean_tumor_percentageCIS(), mean_tumor_percentageTRANS())
+    paste0(sd_tumor_percentageCIS(), sd_tumor_percentageTRANS(), "%tumCIS: ", mean_tumor_percentageCIS(), "%tumTRANS ", mean_tumor_percentageTRANS())
   )
   
 
-#  VAFloh <- case_when(
-#    LOH == "CIS" ~ (100 - mean_tumor_percentage) / (200 - mean_tumor_percentage),
-#    LOH == "TRANS" ~ 100 / (200 - mean_tumor_percentage),
-#    TRUE ~ NA_real_  # Default case for unmatched values, change if a default is desired
-#  )
-  
   
   output$mean_ui <- renderText({
     paste0(round(mean_tumor_percentage(), 2), "%")  # Display as percentage
@@ -252,10 +246,19 @@ server <- function(input, output) {
     req(processed_data())  # Ensure data is available
     result <- processed_data()
     df <- result$cons_tum
+    filtered_data <- result$cons_tum
     
+   # Calculer avec le pourcentage tumoral théorique global
+    filtered_data <- result$cons_tum %>%
+      mutate(
+        VAFtheoric = case_when(
+          LOH == "CIS" & !is.na(mean_tumor_percentage()) ~ (100 - mean_tumor_percentage()) / (200 - mean_tumor_percentage()),
+          LOH == "TRANS" & !is.na(mean_tumor_percentage()) ~ 100 / (200 - mean_tumor_percentage()),
+          TRUE ~ NA_real_
+        )
+      )
     
     # Filter the data if the box is checked
-    filtered_data <- result$cons_tum
     if (input$filter_rows) {
       filtered_data <- filtered_data %>%
         filter(LOH %in% c("CIS", "TRANS"))
