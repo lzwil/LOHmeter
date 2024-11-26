@@ -123,6 +123,7 @@ generate_boxplot <- function(data) {
     ylim(0, 100) 
 }
 
+# Function to generate the second boxplot
 generate_boxplotConclu <- function(data, selected_VAF) {
   # Reshape the data for a combined box plot
   data_for_plot <- data %>%
@@ -131,12 +132,12 @@ generate_boxplotConclu <- function(data, selected_VAF) {
                  names_to = "Category", values_to = "VAF") %>%
     mutate(Category = recode(Category, 
                              VAFtheoTRANS = "LOH TRANS",
-                             VAFtheoPASdeLOH = "PAS de LOH"))  # Rename for clarity
+                             VAFtheoPASdeLOH = "PAS DE LOH"))  # Rename for clarity
   
   # Initialize the plot
   plot <- ggplot(data_for_plot, aes(x = Category, y = VAF)) +
     geom_boxplot(aes(fill = Category), color = "#4D4D4D", width = 0.4) +
-    scale_fill_manual(values = c("LOH TRANS" = "#FFCCCB", "PAS de LOH" = "#ADD8E6")) + # Custom colors
+    scale_fill_manual(values = c("LOH TRANS" = "#FFCCCB", "PAS DE LOH" = "#ADD8E6")) + # Custom colors
     labs(title = "VAF estimée pour LOH TRANS et PAS de LOH",
          y = "VAF estimée", x = NULL) +
     theme_minimal() +
@@ -152,7 +153,9 @@ generate_boxplotConclu <- function(data, selected_VAF) {
   if (!is.null(selected_VAF)) {
     plot <- plot +
       annotate("point", x = "LOH TRANS", y = selected_VAF, color = "red", size = 4, shape = 17) +
-      annotate("text", x = "LOH TRANS", y = selected_VAF, label = round(selected_VAF, 2), vjust = -1, color = "red")
+      annotate("text", x = "LOH TRANS", y = selected_VAF, label = round(selected_VAF, 2), vjust = -1, color = "red") +
+      annotate("point", x = "PAS DE LOH", y = selected_VAF, color = "red", size = 4, shape = 17) +
+      annotate("text", x = "PAS DE LOH", y = selected_VAF, label = round(selected_VAF, 2), vjust = -1, color = "red")
   }
   
   # Return the final plot
@@ -291,7 +294,7 @@ server <- function(input, output) {
     }
   })
   
-  
+
   selected_tumoral_data <- reactive({
     req(result_tumoral())  # Ensure tumor data is available
     selected_row <- input$table_uiTum_rows_selected  # Get selected row index
@@ -411,6 +414,7 @@ server <- function(input, output) {
             scrollY = "400px",
             fixedHeader = TRUE,
             order = list(0, 'asc'),
+            selection = 'single',
             rowCallback = JS(
               "function(row, data, index) {",
               "  if (data[6] == 'CIS') {",

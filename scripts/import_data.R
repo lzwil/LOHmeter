@@ -75,7 +75,7 @@ import_data <- function(constit, tumoral) {
       chrom_num = as.numeric(str_extract(Pos., "(?<=chr)[0-9]+")),
       # Extract the position number from Pos.
       pos_num = as.numeric(str_extract(Pos., "(?<=\\.g\\.)[0-9]+"))
-    ) 
+    )
   
   # Convert columns to character if they are not already
   cons_tum$Coverage.cons <- as.character(cons_tum$Coverage.cons)
@@ -92,7 +92,8 @@ import_data <- function(constit, tumoral) {
     rename(
       VAF.cons = Coverage.cons,  # Rename Coverage.cons to VAF.cons
       VAF.tum = Coverage.tum      # Rename Coverage.tum to VAF.tum
-    ) 
+    ) %>%
+    filter(VAF.cons >= 0.45 & VAF.cons <= 0.55)
   
   # Identify variants from cons_tum with VAF.tum < 0.1
   low_coverage_variants <- cons_tum %>%
