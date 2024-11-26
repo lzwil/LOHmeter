@@ -55,9 +55,9 @@ import_data <- function(constit, tumoral) {
       Coverage = ifelse(is.na(Coverage), 0, Coverage) / 100 
     ) %>%
     rename(
-      VAF = Coverage
+      VAF.tum = Coverage
     ) %>%
-    select(Pos., Gene, c..HGVS, VAF, chrom_num, pos_num) %>%
+    select(Pos., Gene, c..HGVS, VAF.tum, chrom_num, pos_num) %>%
     # Sort by chrom_num first, then by pos_num
     arrange(chrom_num, pos_num) %>%
     # Remove temporary sorting columns
@@ -94,6 +94,21 @@ import_data <- function(constit, tumoral) {
       VAF.tum = Coverage.tum      # Rename Coverage.tum to VAF.tum
     ) 
   
+  # Identify variants from cons_tum with VAF.tum < 0.1
+  low_coverage_variants <- cons_tum %>%
+    filter(VAF.cons < 0.1 & VAF.tum > 0.1) %>%
+    select(Pos., Gene.tum, c..HGVS.tum, VAF.tum) %>%
+    rename(
+      Gene = Gene.tum,
+      c..HGVS = c..HGVS.tum,
+      VAF.tum = VAF.tum
+    )
+  
+  # Add low-coverage variants to unique_tumoral
+  unique_tumoral <- unique_tumoral %>%
+    bind_rows(low_coverage_variants) %>%
+    distinct() %>%  # Remove duplicates
+    arrange(Pos.)
   
   saveRDS(cons_tum, file = "cons_tum_cleaned.rds")
   saveRDS(unique_tumoral, file = "unique_tumoral.rds")

@@ -6,6 +6,7 @@ library(ggplot2)  # Make sure ggplot2 is loaded for plotting
 library(shiny)
 library(bsicons)
 library(bslib)
+library(tidyr)
 source("import_data.R")
 source("analyse_data.R")
 
@@ -41,10 +42,10 @@ ui <- navbarPage(
               title = "Pourcentage tumoral estimé",
               style = "height: 370px;",
               value = tags$div(
-                style = "font-size: 60px;",
+                style = "font-size: 50px;",
                 textOutput(outputId = "mean_ui")
               ),
-              showcase = tags$img(src = "test-tube.PNG", height = "150px")
+              showcase = tags$img(src = "test-tube.png", height = "130px")
             )
           ),
           # Column for the plot content
@@ -63,14 +64,14 @@ ui <- navbarPage(
   ),
   tabPanel("LOH ou non ?", 
            fluidRow(
-             style = "display: flex",  
              column(
                width = 5,
+               h4("VAF estimée pour un nouveau variant avec LOH TRANS"),
                card(
                  width = 12,
-                 style = "height: 370px",
+                 style = "height: 450px",
                  full_screen = TRUE,
-                 textOutput(outputId = "concluPlot_ui")
+                 uiOutput(outputId = "concluPlot_ui")
                )
              ),
              column(
@@ -122,6 +123,46 @@ generate_boxplot <- function(data) {
     ylim(0, 100) 
 }
 
+generate_boxplotConclu <- function(data, selected_VAF) {
+  # Reshape the data for a combined box plot
+  data_for_plot <- data %>%
+    filter(!is.na(VAFtheoTRANS) & !is.na(VAFtheoPASdeLOH)) %>%
+    pivot_longer(cols = c(VAFtheoTRANS, VAFtheoPASdeLOH),
+                 names_to = "Category", values_to = "VAF") %>%
+    mutate(Category = recode(Category, 
+                             VAFtheoTRANS = "LOH TRANS",
+                             VAFtheoPASdeLOH = "PAS de LOH"))  # Rename for clarity
+  
+  # Initialize the plot
+  plot <- ggplot(data_for_plot, aes(x = Category, y = VAF)) +
+    geom_boxplot(aes(fill = Category), color = "#4D4D4D", width = 0.4) +
+    scale_fill_manual(values = c("LOH TRANS" = "#FFCCCB", "PAS de LOH" = "#ADD8E6")) + # Custom colors
+    labs(title = "VAF estimée pour LOH TRANS et PAS de LOH",
+         y = "VAF estimée", x = NULL) +
+    theme_minimal() +
+    theme(
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+      plot.title = element_text(size = 16),
+      legend.position = "none"  # Remove legend as x-axis labels are descriptive
+    ) +
+    ylim(0, 1)
+  
+  # Conditionally add the point and text layers for VAF if selected_VAF is not NULL
+  if (!is.null(selected_VAF)) {
+    plot <- plot +
+      annotate("point", x = "LOH TRANS", y = selected_VAF, color = "red", size = 4, shape = 17) +
+      annotate("text", x = "LOH TRANS", y = selected_VAF, label = round(selected_VAF, 2), vjust = -1, color = "red")
+  }
+  
+  # Return the final plot
+  return(plot)
+}
+
+
+
+
+
 server <- function(input, output) {
   
   
@@ -139,6 +180,7 @@ server <- function(input, output) {
     
     # Analyze the data 
     result <- analyse_data("cons_tum_cleaned.rds")
+    #print(result)
     processed_data(result)  # Store the result in the reactive value
     
     # Store the unique_tumoral data in reactive value
@@ -159,7 +201,7 @@ server <- function(input, output) {
     
     # Get the processed data
     result <- processed_data()
-    filtered_data <- result$cons_tum
+    filtered_data <- result
     
     # Filter the data if the "Afficher uniquement les lignes CIS et TRANS" checkbox is checked
     if (input$filter_rows) {
@@ -180,7 +222,17 @@ server <- function(input, output) {
   # Reactive expression for the tumor percentage
   mean_tumor_percentage <- reactive({
     req(processed_data())
-    processed_data()$cons_tum %>%
+    # Get the current data
+    result <- processed_data()
+    data <- result
+    
+    # Filter the data by the selected gene(s)
+    if (!("Tous les locus" %in% input$selected_gene)) {
+      data <- data %>% filter(Gene.cons %in% input$selected_gene)
+    }
+    
+    # Calculate the mean tumor percentage
+    data %>%
       summarise(Mean = mean(`%tumoral`, na.rm = TRUE)) %>%
       pull(Mean)
   })
@@ -205,38 +257,77 @@ server <- function(input, output) {
       pull(Mean)
   })
   
-  # Reactive expression for the standard deviation of %tumoral for CIS rows
-  sd_tumor_percentageCIS <- reactive({
+  VAFtheo_CIS <- reactive({
     req(processed_data())
-    cis_data <- processed_data()$cons_tum %>% filter(LOH == "CIS")
     
-    # Ensure there are rows with LOH == "CIS"
-    req(nrow(cis_data) > 0)  # Proceed only if there are matching rows
-    
-    cis_data %>%
-      summarise(SD = sd(`%tumoral`, na.rm = TRUE)) %>%
-      pull(SD)
+    VAFtheoCIS <- round((100 - mean_tumor_percentage()) / (200 - mean_tumor_percentage()), 2)
+    return(VAFtheoCIS)
   })
   
-  # Reactive expression for the standard deviation of %tumoral for CIS rows
-  sd_tumor_percentageTRANS <- reactive({
+  VAFtheo_TRANS <- reactive({
     req(processed_data())
-    trans_data <- processed_data()$cons_tum %>% filter(LOH == "TRANS")
     
-    # Ensure there are rows with LOH == "CIS"
-    req(nrow(trans_data) > 0)  # Proceed only if there are matching rows
-    
-    trans_data %>%
-      summarise(SD = sd(`%tumoral`, na.rm = TRUE)) %>%
-      pull(SD)
+    VAFtheoTRANS <- mean_tumor_percentage() / (mean_tumor_percentage() + 2 * (100 - mean_tumor_percentage()))
+    return(VAFtheoTRANS)
   })
   
-  output$concluPlot_ui <- renderText(
-    paste0(sd_tumor_percentageCIS(), sd_tumor_percentageTRANS(), "%tumCIS: ", mean_tumor_percentageCIS(), "%tumTRANS ", mean_tumor_percentageTRANS())
-  )
+  output$concluPlot_ui <- renderUI({
+    req(processed_data())
+    result <- processed_data()
+    
+    if (is.null(result)) {
+      return(tags$div(
+        style = "display: flex; justify-content: center; align-items: center; height: 100%;",
+        tags$img(
+          src = "box-plot.png",  
+          height = "150px",
+          width = "150px",
+          alt = "Loading plot placeholder"
+        )
+      ))
+    } else {
+      # Show the plot when data is ready
+      return(plotOutput(outputId = "conclu_plot"))
+    }
+  })
+  
+  
+  selected_tumoral_data <- reactive({
+    req(result_tumoral())  # Ensure tumor data is available
+    selected_row <- input$table_uiTum_rows_selected  # Get selected row index
+    if (length(selected_row) > 0) {
+      result_tumoral()[selected_row, ]  # Extract the data for the selected row
+    } else {
+      NULL  # Return NULL if no row is selected
+    }
+  })
+
+  # Render the plot
+  output$conclu_plot <- renderPlot({
+      req(processed_data(), selected_tumoral_data(), input$selected_gene)  # Ensure both data and selected row are available
+      result <- processed_data()
+      selected_data <- selected_tumoral_data()
+      
+      
+      # Filter the data by the selected gene(s)
+      if (!("Tous les locus" %in% input$selected_gene)) {
+        result <- result %>%
+          filter(Gene.cons %in% input$selected_gene)
+      }
+      
+      # Pass the selected VAF value from the selected row to the plot
+      selected_VAF <- if (!is.null(selected_data)) {
+        selected_data$VAF.tum
+      } else {
+        NULL  # If no row is selected, no point will be shown
+      }
+      
+      # Generate the plot with the reusable function
+      
+      generate_boxplotConclu(result, selected_VAF)  
+    })
   
 
-  
   output$mean_ui <- renderText({
     paste0(round(mean_tumor_percentage(), 2), "%")  # Display as percentage
   })
@@ -245,18 +336,8 @@ server <- function(input, output) {
   output$table_ui <- renderDT({
     req(processed_data())  # Ensure data is available
     result <- processed_data()
-    df <- result$cons_tum
-    filtered_data <- result$cons_tum
-    
-   # Calculer avec le pourcentage tumoral théorique global
-    filtered_data <- result$cons_tum %>%
-      mutate(
-        VAFtheoric = case_when(
-          LOH == "CIS" & !is.na(mean_tumor_percentage()) ~ (100 - mean_tumor_percentage()) / (200 - mean_tumor_percentage()),
-          LOH == "TRANS" & !is.na(mean_tumor_percentage()) ~ 100 / (200 - mean_tumor_percentage()),
-          TRUE ~ NA_real_
-        )
-      )
+    df <- result
+    filtered_data <- result
     
     # Filter the data if the box is checked
     if (input$filter_rows) {
@@ -304,7 +385,8 @@ server <- function(input, output) {
             fixedHeader = TRUE,
             order = list(0, 'asc'),
             searching = FALSE,
-            lengthChange = FALSE
+            lengthChange = FALSE,
+            selection = 'single'
           ),
           class = 'display nowrap compact stripe hover row-border order-column',
           escape = FALSE
@@ -314,8 +396,8 @@ server <- function(input, output) {
       output$table_uiTum <- renderDT({
         req(processed_data())  # Ensure data is available
         result <- processed_data()
-        df <- result$cons_tum
-        filtered_data <- result$cons_tum
+        df <- result
+        filtered_data <- result
         if (input$filter_rows) {
           filtered_data <- filtered_data %>%
             filter(LOH %in% c("CIS", "TRANS"))
@@ -345,14 +427,15 @@ server <- function(input, output) {
       })
     }
   })
-
+  
   
   # Render the plot or placeholder
   output$plot_ui <- renderUI({
+    req(processed_data())
     result <- processed_data()
     
-    if (is.null(result$boxplot)) {
-      tags$div(
+    if (is.null(result)) {
+      return(tags$div(
         style = "display: flex; justify-content: center; align-items: center; height: 100%;",  # Centering styles
         tags$img(
           src = "box-plot.png",  
@@ -360,11 +443,11 @@ server <- function(input, output) {
           width = "150px",
           alt = "Loading plot placeholder"
         )
-      )
+      ))
       
     } else {
       # Show the plot when data is ready
-      plotOutput(outputId = "plot")  
+      return(plotOutput(outputId = "plot"))  
       
       
     }
@@ -374,15 +457,14 @@ server <- function(input, output) {
   output$plot <- renderPlot({
     result <- processed_data()
     req(result)  
-    req(result$cons_tum)  
     
     # Filter the data by the selected gene
     
     if (any("Tous les locus" %in% input$selected_gene)){
-      filtered_data <- result$cons_tum
+      filtered_data <- result
     } else {
       
-      filtered_data <- result$cons_tum %>%
+      filtered_data <- result %>%
         filter(Gene.cons %in% input$selected_gene)
     }
     # Generate the plot using the reusable function
@@ -395,7 +477,7 @@ server <- function(input, output) {
     result <- processed_data()  # Get the current data
     req(result)  
     
-    filtered_data <- result$cons_tum  
+    filtered_data <- result
     
     if (input$filter_rows) {
       filtered_data <- filtered_data %>% filter(LOH %in% c("CIS", "TRANS"))
@@ -406,11 +488,11 @@ server <- function(input, output) {
     if (length(selected_rows) > 0) {
       selected_data <- filtered_data[selected_rows, ]  
       
-      original_data <- result$cons_tum  
+      original_data <- result
       new_data <- original_data %>%
         filter(!Pos. %in% selected_data$Pos.)  
       
-      processed_data(list(cons_tum = new_data, boxplot = generate_boxplot(new_data)))
+      processed_data(new_data)
     }
   })
 }

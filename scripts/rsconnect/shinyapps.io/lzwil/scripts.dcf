@@ -5,6 +5,6 @@ account: lzwil
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 12507238
-bundleId: 9211236
+bundleId: 9402723
 url: https://lzwil.shinyapps.io/scripts/
 version: 1
