@@ -64,3 +64,19 @@ unique_tumoral <- unique_tumoral %>%
   bind_rows(low_coverage_variants) %>%
   distinct() %>%  # Remove duplicates
   arrange(Pos.)
+
+
+
+VAFtheo_CIS <- reactive({
+  req(processed_data())
+  
+  VAFtheoCIS <- round((100 - mean_tumor_percentage()) / (200 - mean_tumor_percentage()), 2)
+  return(VAFtheoCIS)
+})
+
+VAFtheo_TRANS <- reactive({
+  req(processed_data())
+  
+  VAFtheoTRANS <- mean_tumor_percentage() / (mean_tumor_percentage() + 2 * (100 - mean_tumor_percentage()))
+  return(VAFtheoTRANS)
+})

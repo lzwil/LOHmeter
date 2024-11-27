@@ -164,6 +164,9 @@ generate_boxplotConclu <- function(data, selected_VAF) {
 
 
 
+################################ Server #######################################
+
+
 
 
 server <- function(input, output) {
@@ -198,7 +201,7 @@ server <- function(input, output) {
     actionButton(inputId = "delete_rows", label = "Supprimer les lignes sélectionnées", icon = icon("trash-alt"))
   })
   
-  # Render the gene selection UI based on the processed data
+ # Render the gene selection UI based on the processed data
   output$gene_selector <- renderUI({
     req(processed_data())
     
@@ -226,12 +229,12 @@ server <- function(input, output) {
   mean_tumor_percentage <- reactive({
     req(processed_data())
     # Get the current data
-    result <- processed_data()
-    data <- result
+    data <- processed_data()
+
     
     # Filter the data by the selected gene(s)
     if (!("Tous les locus" %in% input$selected_gene)) {
-      data <- data %>% filter(Gene.cons %in% input$selected_gene)
+      data <- processed_data() %>% filter(Gene.cons %in% input$selected_gene)
     }
     
     # Calculate the mean tumor percentage
@@ -240,107 +243,17 @@ server <- function(input, output) {
       pull(Mean)
   })
   
-  # Reactive expression for the tumor percentage
-  mean_tumor_percentageTRANS <- reactive({
-    req(processed_data())
-    mean_TRANS_data <- processed_data()$cons_tum %>% filter(LOH == "TRANS")
-    
-    mean_TRANS_data %>%
-      summarise(Mean = mean(`%tumoral`, na.rm = TRUE)) %>%
-      pull(Mean)
-  })
-  
-  # Reactive expression for the tumor percentage
-  mean_tumor_percentageCIS <- reactive({
-    req(processed_data())
-    mean_cis_data <- processed_data()$cons_tum %>% filter(LOH == "CIS")
-    
-    mean_cis_data %>%
-      summarise(Mean = mean(`%tumoral`, na.rm = TRUE)) %>%
-      pull(Mean)
-  })
-  
-  VAFtheo_CIS <- reactive({
-    req(processed_data())
-    
-    VAFtheoCIS <- round((100 - mean_tumor_percentage()) / (200 - mean_tumor_percentage()), 2)
-    return(VAFtheoCIS)
-  })
-  
-  VAFtheo_TRANS <- reactive({
-    req(processed_data())
-    
-    VAFtheoTRANS <- mean_tumor_percentage() / (mean_tumor_percentage() + 2 * (100 - mean_tumor_percentage()))
-    return(VAFtheoTRANS)
-  })
-  
-  output$concluPlot_ui <- renderUI({
-    req(processed_data())
-    result <- processed_data()
-    
-    if (is.null(result)) {
-      return(tags$div(
-        style = "display: flex; justify-content: center; align-items: center; height: 100%;",
-        tags$img(
-          src = "box-plot.png",  
-          height = "150px",
-          width = "150px",
-          alt = "Loading plot placeholder"
-        )
-      ))
-    } else {
-      # Show the plot when data is ready
-      return(plotOutput(outputId = "conclu_plot"))
-    }
-  })
-  
 
-  selected_tumoral_data <- reactive({
-    req(result_tumoral())  # Ensure tumor data is available
-    selected_row <- input$table_uiTum_rows_selected  # Get selected row index
-    if (length(selected_row) > 0) {
-      result_tumoral()[selected_row, ]  # Extract the data for the selected row
-    } else {
-      NULL  # Return NULL if no row is selected
-    }
-  })
-
-  # Render the plot
-  output$conclu_plot <- renderPlot({
-      req(processed_data(), selected_tumoral_data(), input$selected_gene)  # Ensure both data and selected row are available
-      result <- processed_data()
-      selected_data <- selected_tumoral_data()
-      
-      
-      # Filter the data by the selected gene(s)
-      if (!("Tous les locus" %in% input$selected_gene)) {
-        result <- result %>%
-          filter(Gene.cons %in% input$selected_gene)
-      }
-      
-      # Pass the selected VAF value from the selected row to the plot
-      selected_VAF <- if (!is.null(selected_data)) {
-        selected_data$VAF.tum
-      } else {
-        NULL  # If no row is selected, no point will be shown
-      }
-      
-      # Generate the plot with the reusable function
-      
-      generate_boxplotConclu(result, selected_VAF)  
-    })
-  
-
+  #Round the mean 
   output$mean_ui <- renderText({
     paste0(round(mean_tumor_percentage(), 2), "%")  # Display as percentage
   })
   
-  # Render the DataTable
+  # Render the DataTable for the first page
   output$table_ui <- renderDT({
     req(processed_data())  # Ensure data is available
-    result <- processed_data()
-    df <- result
-    filtered_data <- result
+    filtered_data <- processed_data()
+
     
     # Filter the data if the box is checked
     if (input$filter_rows) {
@@ -372,68 +285,8 @@ server <- function(input, output) {
     ))
   }
   )
-
-  # Render the DataTable
-  observe({
-    if (input$new_variants) {
-      output$table_uiTum <- renderDT({
-        req(result_tumoral())  # Ensure data is available
-        return(datatable(
-          result_tumoral(),
-          options = list(
-            pageLength = 50,
-            lengthMenu = c(10, 25, 50, 100),
-            autowidth = TRUE,
-            scrollY = "400px",
-            fixedHeader = TRUE,
-            order = list(0, 'asc'),
-            searching = FALSE,
-            lengthChange = FALSE,
-            selection = 'single'
-          ),
-          class = 'display nowrap compact stripe hover row-border order-column',
-          escape = FALSE
-        ))
-      })
-    } else {
-      output$table_uiTum <- renderDT({
-        req(processed_data())  # Ensure data is available
-        result <- processed_data()
-        df <- result
-        filtered_data <- result
-        if (input$filter_rows) {
-          filtered_data <- filtered_data %>%
-            filter(LOH %in% c("CIS", "TRANS"))
-        }
-        return(datatable(
-          filtered_data,
-          options = list(
-            pageLength = 50,
-            lengthMenu = c(10, 25, 50, 100),
-            autowidth = TRUE,
-            scrollY = "400px",
-            fixedHeader = TRUE,
-            order = list(0, 'asc'),
-            selection = 'single',
-            rowCallback = JS(
-              "function(row, data, index) {",
-              "  if (data[6] == 'CIS') {",
-              "    $('td', row).css('background-color', '#d4f1bc');",
-              "  } else if (data[6] == 'TRANS') {",
-              "    $('td', row).css('background-color', '#ffcccb');",
-              "  }",
-              "}"
-            )
-          ),
-          class = 'display nowrap compact stripe hover row-border order-column',
-          escape = FALSE
-        ))
-      })
-    }
-  })
   
-  
-  # Render the plot or placeholder
+  # Render the plot
   output$plot_ui <- renderUI({
     req(processed_data())
     result <- processed_data()
@@ -452,8 +305,6 @@ server <- function(input, output) {
     } else {
       # Show the plot when data is ready
       return(plotOutput(outputId = "plot"))  
-      
-      
     }
   })
   
@@ -499,7 +350,153 @@ server <- function(input, output) {
       processed_data(new_data)
     }
   })
+
+  
+############################## Second Panel ###################################
+  
+  # Reactive value to store the selected VAF.tum
+  selected_VAF <- reactiveVal(NULL)
+  
+  observe({
+    # Observe changes to the selected_VAF reactive value
+    vaf_value <- selected_VAF()
+    if (!is.null(vaf_value)) {
+      cat("Updated selected_VAF:", vaf_value, "\n")
+    } else {
+      cat("selected_VAF is NULL\n")
+    }
+  })
+  
+  # Render and observe table based on the toggle input$new_variants
+  observe({
+    # Check if 'new_variants' input is TRUE
+    if (input$new_variants) {
+      
+      # Render the new_variants table
+      output$table_uiTum <- renderDT({
+        req(result_tumoral())  # Ensure data is available
+        datatable(result_tumoral(), 
+                  options = list(
+                    pageLength = 50, lengthMenu = c(10, 25, 50, 100), 
+                    autowidth = TRUE, scrollY = "400px", 
+                    fixedHeader = TRUE, order = list(0, 'asc'),
+                    selection = 'single'  # Single row selection
+                  ),
+                  class = 'display nowrap compact stripe hover row-border order-column',
+                  escape = FALSE)
+      })
+      
+      # Observe the row selection for new_variants table
+      observeEvent(input$table_uiTum_rows_selected, {
+        selected_index <- input$table_uiTum_rows_selected  # Get the selected row index
+        if (length(selected_index) > 0) {
+          # Extract the VAF.tum value from the selected row
+          data <- result_tumoral()
+          selected_VAF(as.numeric(data[selected_index, "VAF.tum"]))  # Update reactive value
+        } else {
+          selected_VAF(NULL)  # Clear if no row is selected
+        }
+      })
+      
+    } else {
+      
+      # Render the processed_data table when new_variants is FALSE
+      output$table_uiTum <- renderDT({
+        req(processed_data())  # Ensure data is available
+        data <- processed_data()
+        if (input$filter_rows) {
+          data <- data %>% filter(LOH %in% c("CIS", "TRANS"))  # Apply filter if checked
+        }
+        
+        datatable(data, 
+                  options = list(
+                    pageLength = 50, lengthMenu = c(10, 25, 50, 100), 
+                    autowidth = TRUE, scrollY = "400px", 
+                    fixedHeader = TRUE, order = list(0, 'asc'),
+                    selection = 'single',  # Single row selection
+                    rowCallback = JS(
+                      "function(row, data, index) {",
+                      "  if (data[6] == 'CIS') {",
+                      "    $('td', row).css('background-color', '#d4f1bc');",
+                      "  } else if (data[6] == 'TRANS') {",
+                      "    $('td', row).css('background-color', '#ffcccb');",
+                      "  }",
+                      "}"
+                    )
+                  ),
+                  class = 'display nowrap compact stripe hover row-border order-column',
+                  escape = FALSE)
+      })
+      
+      # Observe the row selection for processed_data table
+      observeEvent(input$table_uiTum_rows_selected, {
+        selected_index <- input$table_uiTum_rows_selected  # Get the selected row index
+        if (length(selected_index) > 0) {
+          # Extract the VAF.tum value from the selected row
+          data <- processed_data()
+          selected_VAF(as.numeric(data[selected_index, "VAF.tum"]))  # Update reactive value
+        } else {
+          selected_VAF(NULL)  # Clear if no row is selected
+        }
+      })
+    }
+  })
+  
+  
+  # Render the plot
+  output$conclu_plot <- renderPlot({
+    req(processed_data(),
+        input$table_uiTum_rows_selected,
+        selected_VAF())  # Ensure required inputs are available
+    
+    # Get the processed data
+    result <- processed_data()
+    
+    # Filter the data by the selected gene(s)
+    if (!("Tous les locus" %in% input$selected_gene)) {
+      result <- result %>%
+        filter(Gene.cons %in% input$selected_gene)
+    }
+    
+    selected_VAF_value <- selected_VAF() 
+    
+    if (!is.null(selected_VAF_value)) {
+      # Generate the plot using the selected VAF value
+      generate_boxplotConclu(result, selected_VAF_value)
+    } else {
+      # Generate the plot with the default data or some placeholder if no selection
+      generate_boxplotConclu(result, NULL)  # Replace NULL with default behavior if needed
+    }
+    
+    # Generate the plot using the reusable function
+    generate_boxplotConclu(result, selected_VAF_value)
+  })
+  
+  
+  
+  output$concluPlot_ui <- renderUI({
+    req(processed_data())
+    result <- processed_data()
+    
+    if (is.null(result)) {
+      return(
+        tags$div(
+          style = "display: flex; justify-content: center; align-items: center; height: 100%;",
+          tags$img(
+            src = "box-plot.png",
+            height = "150px",
+            width = "150px",
+            alt = "Loading plot placeholder"
+          )
+        )
+      )
+    } else {
+      # Show the plot when data is ready
+      return(plotOutput(outputId = "conclu_plot"))
+    }
+  })
 }
+
 
 # Run the application 
 shinyApp(ui = ui, server = server)
