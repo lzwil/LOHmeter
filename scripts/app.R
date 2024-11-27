@@ -89,6 +89,17 @@ ui <- navbarPage(
 )
 
 
+
+
+
+##################################### Fonctions ###############################
+
+
+
+
+
+
+
 # Function to generate the box plot
 generate_boxplot <- function(data) {
   data_for_plot <- data %>%
@@ -138,8 +149,7 @@ generate_boxplotConclu <- function(data, selected_VAF) {
   plot <- ggplot(data_for_plot, aes(x = Category, y = VAF)) +
     geom_boxplot(aes(fill = Category), color = "#4D4D4D", width = 0.4) +
     scale_fill_manual(values = c("LOH TRANS" = "#FFCCCB", "PAS DE LOH" = "#ADD8E6")) + # Custom colors
-    labs(title = "VAF estimée pour LOH TRANS et PAS de LOH",
-         y = "VAF estimée", x = NULL) +
+    labs(y = "VAF estimée", x = NULL) +
     theme_minimal() +
     theme(
       axis.title = element_text(size = 14),
@@ -350,9 +360,18 @@ server <- function(input, output) {
       processed_data(new_data)
     }
   })
+  
+  
+  
 
   
 ############################## Second Panel ###################################
+  
+  
+  
+  
+  
+  
   
   # Reactive value to store the selected VAF.tum
   selected_VAF <- reactiveVal(NULL)
@@ -371,7 +390,6 @@ server <- function(input, output) {
   observe({
     # Check if 'new_variants' input is TRUE
     if (input$new_variants) {
-      
       # Render the new_variants table
       output$table_uiTum <- renderDT({
         req(result_tumoral())  # Ensure data is available
@@ -379,24 +397,37 @@ server <- function(input, output) {
                   options = list(
                     pageLength = 50, lengthMenu = c(10, 25, 50, 100), 
                     autowidth = TRUE, scrollY = "400px", 
-                    fixedHeader = TRUE, order = list(0, 'asc'),
-                    selection = 'single'  # Single row selection
+                    fixedHeader = TRUE, order = list(0, 'asc')
                   ),
                   class = 'display nowrap compact stripe hover row-border order-column',
-                  escape = FALSE)
+                  escape = FALSE,
+                  selection = 'single')
       })
       
       # Observe the row selection for new_variants table
       observeEvent(input$table_uiTum_rows_selected, {
+        
         selected_index <- input$table_uiTum_rows_selected  # Get the selected row index
         if (length(selected_index) > 0) {
           # Extract the VAF.tum value from the selected row
-          data <- result_tumoral()
-          selected_VAF(as.numeric(data[selected_index, "VAF.tum"]))  # Update reactive value
+          data <- result_tumoral()  # Assuming result_tumoral is the source data for this table
+          
+          # Make sure we are extracting a numeric value, not a list or other complex structure
+          vaf_value <- data[selected_index, "VAF.tum", drop = TRUE]  # Extract the VAF.tum column as a vector
+
+          # Check if the value is numeric and assign it to selected_VAF
+          if (!is.null(vaf_value) && is.numeric(vaf_value)) {
+            selected_VAF(vaf_value)  # Update the reactive value with the numeric VAF value
+          } else {
+            selected_VAF(NULL)  # If the value is not numeric, clear selected_VAF
+          }
         } else {
           selected_VAF(NULL)  # Clear if no row is selected
         }
       })
+      
+      
+      
       
     } else {
       
@@ -413,7 +444,6 @@ server <- function(input, output) {
                     pageLength = 50, lengthMenu = c(10, 25, 50, 100), 
                     autowidth = TRUE, scrollY = "400px", 
                     fixedHeader = TRUE, order = list(0, 'asc'),
-                    selection = 'single',  # Single row selection
                     rowCallback = JS(
                       "function(row, data, index) {",
                       "  if (data[6] == 'CIS') {",
@@ -425,59 +455,59 @@ server <- function(input, output) {
                     )
                   ),
                   class = 'display nowrap compact stripe hover row-border order-column',
-                  escape = FALSE)
+                  escape = FALSE,
+                  selection = 'single')
       })
       
-      # Observe the row selection for processed_data table
       observeEvent(input$table_uiTum_rows_selected, {
         selected_index <- input$table_uiTum_rows_selected  # Get the selected row index
         if (length(selected_index) > 0) {
           # Extract the VAF.tum value from the selected row
-          data <- processed_data()
-          selected_VAF(as.numeric(data[selected_index, "VAF.tum"]))  # Update reactive value
+          data <- processed_data()  # Assuming result_tumoral is the source data for this table
+
+          # Make sure we are extracting a numeric value, not a list or other complex structure
+          vaf_value <- data[selected_index, "VAF.tum", drop = TRUE]  # Extract the VAF.tum column as a vector
+
+          # Check if the value is numeric and assign it to selected_VAF
+          if (!is.null(vaf_value) && is.numeric(vaf_value)) {
+            selected_VAF(vaf_value)  # Update the reactive value with the numeric VAF value
+          } else {
+            selected_VAF(NULL)  # If the value is not numeric, clear selected_VAF
+          }
         } else {
           selected_VAF(NULL)  # Clear if no row is selected
         }
       })
+
     }
   })
   
   
-  # Render the plot
   output$conclu_plot <- renderPlot({
-    req(processed_data(),
-        input$table_uiTum_rows_selected,
-        selected_VAF())  # Ensure required inputs are available
-    
-    # Get the processed data
+    req(processed_data())  # Ensure processed data is available
+
     result <- processed_data()
-    
+
     # Filter the data by the selected gene(s)
     if (!("Tous les locus" %in% input$selected_gene)) {
       result <- result %>%
         filter(Gene.cons %in% input$selected_gene)
     }
-    
-    selected_VAF_value <- selected_VAF() 
-    
-    if (!is.null(selected_VAF_value)) {
-      # Generate the plot using the selected VAF value
-      generate_boxplotConclu(result, selected_VAF_value)
-    } else {
-      # Generate the plot with the default data or some placeholder if no selection
-      generate_boxplotConclu(result, NULL)  # Replace NULL with default behavior if needed
-    }
-    
+
+    # Get the selected VAF value
+    selected_VAF_value <- selected_VAF()  # This will be NULL if no row is selected
+
     # Generate the plot using the reusable function
+    # If no VAF value is selected, just create the boxplot without annotation
     generate_boxplotConclu(result, selected_VAF_value)
   })
-  
-  
-  
+
+
+
   output$concluPlot_ui <- renderUI({
     req(processed_data())
     result <- processed_data()
-    
+
     if (is.null(result)) {
       return(
         tags$div(
@@ -496,7 +526,6 @@ server <- function(input, output) {
     }
   })
 }
-
 
 # Run the application 
 shinyApp(ui = ui, server = server)
