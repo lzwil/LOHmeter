@@ -18,7 +18,7 @@ ui <- navbarPage(
       sidebar = sidebar(
         fileInput(inputId = "constit", label = "Constitutionel"),
         fileInput(inputId = "tum", label = "Tumoral"),
-        checkboxInput(inputId = "filter_rows", label = "Afficher uniquement les lignes CIS et TRANS", value = TRUE),
+        checkboxInput(inputId = "filter_rows", label = "Afficher uniquement les lignes CIS et TRANS", value = FALSE),
         uiOutput("delete_button_ui"),
         uiOutput("gene_selector")
       ),
@@ -29,7 +29,7 @@ ui <- navbarPage(
             card(
               width = 12,
               style = "height: 500px; overflow-y: auto;",
-              DTOutput("table_ui")
+              uiOutput("table_ui_wrapper")
             )
           ),
           column(
@@ -50,7 +50,7 @@ ui <- navbarPage(
               width = 12,
               style = "height: 370px",
               full_screen = TRUE,
-              plotOutput(outputId = "plot")
+              plotOutput(outputId = "plot", height = "400px")
             )
           )
         )
@@ -67,7 +67,7 @@ ui <- navbarPage(
           width = 12,
           style = "height: 450px",
           full_screen = TRUE,
-          plotOutput(outputId = "conclu_plot")
+          plotOutput(outputId = "conclu_plot", height = "500px")
         )
       ),
       column(
@@ -78,87 +78,213 @@ ui <- navbarPage(
           style = "flex: 1; overflow-y: auto; padding: 0;",
           DTOutput("table_uiTum")
         ),
-        checkboxInput(inputId = "new_variants", label = "Nouveaux Variants Somatiques", value = TRUE)
+        checkboxInput(inputId = "new_variants", label = "Nouveaux Variants Somatiques", value = FALSE)
+      )
+    )
+  ),
+  tabPanel(
+    "Comment utiliser l'outil ?",
+    fluidPage(
+      br(),
+      fluidRow(
+        column(
+          width = 12,
+          tags$div(
+            style = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;",
+            tags$h3("Guide d'utilisation", style = "margin: 0;"),
+            tags$a(
+              href = "guide_utilisation.pdf",
+              target = "_blank",
+              "Ouvrir le PDF dans un nouvel onglet"
+            )
+          )
+        )
+      ),
+      tags$div(
+        style = "height: calc(100vh - 190px); width: 100%;",
+        tags$iframe(
+          src = "guide_utilisation.pdf",
+          style = "width: 100%; height: 100%; border: 1px solid #ddd; border-radius: 8px;"
+        )
       )
     )
   )
 )
 
+
+theme_lohmeter <- function() {
+  theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(face = "bold", size = 17, hjust = 0, color = "#1f2937"),
+      plot.subtitle = element_text(size = 11.5, hjust = 0, color = "#6b7280"),
+      axis.title = element_text(face = "bold", color = "#374151"),
+      axis.text = element_text(color = "#374151"),
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_blank(),
+      legend.position = "none",
+      plot.margin = margin(12, 18, 12, 12)
+    )
+}
+
 generate_boxplot <- function(data) {
   data_for_plot <- data %>%
     filter(!is.na(`%tumoral`), LOH %in% c("CIS", "TRANS")) %>%
-    select(LOH, `%tumoral`)
+    mutate(LOH = factor(LOH, levels = c("CIS", "TRANS")))
   
   validate(need(nrow(data_for_plot) > 0, "Aucune donnée exploitable pour le graphique."))
   
   summary_stats <- data_for_plot %>%
     group_by(LOH) %>%
     summarise(
-      Mean = mean(`%tumoral`, na.rm = TRUE),
-      SD = sd(`%tumoral`, na.rm = TRUE),
+      n = n(),
+      mean_value = mean(`%tumoral`, na.rm = TRUE),
+      median_value = median(`%tumoral`, na.rm = TRUE),
+      sd_value = sd(`%tumoral`, na.rm = TRUE),
       .groups = "drop"
     )
   
   ggplot(data_for_plot, aes(x = LOH, y = `%tumoral`, fill = LOH)) +
-    geom_boxplot(varwidth = TRUE, outlier.shape = NA, linetype = 1) +
-    geom_point(data = summary_stats, aes(x = LOH, y = Mean), color = "#4D4D4D", size = 3, shape = 20, show.legend = FALSE) +
+    geom_boxplot(
+      width = 0.52,
+      alpha = 0.85,
+      outlier.shape = NA,
+      color = "#4b5563"
+    ) +
+    geom_jitter(
+      width = 0.10,
+      alpha = 0.55,
+      size = 2.2,
+      color = "#374151"
+    ) +
     geom_text(
       data = summary_stats,
-      aes(x = LOH, y = Mean, label = paste("Mean:", round(Mean, 2), "±", round(SD, 2))),
-      vjust = -2, hjust = 1.1, color = "#4D4D4D", size = 5, fontface = "bold"
+      aes(x = LOH, y = 98, label = paste0("n = ", n)),
+      inherit.aes = FALSE,
+      size = 4.2,
+      fontface = "bold",
+      color = "#374151"
     ) +
+    scale_fill_manual(values = c("CIS" = "#d9f2c7", "TRANS" = "#ffd6d6")) +
+    coord_cartesian(ylim = c(0, 100), clip = "off") +
     labs(
-      title = "Pourcentage estimé de cellules tumorales par classification LOH",
+      title = "Estimation du pourcentage tumoral",
+      subtitle = "Distribution des variants classés CIS et TRANS",
       x = NULL,
-      y = "% Tumoral"
+      y = "% tumoral estimé"
     ) +
-    scale_fill_manual(values = c("CIS" = "#d4f1bc", "TRANS" = "#ffcccb")) +
-    theme_minimal() +
+    theme_lohmeter() +
     theme(
-      legend.text = element_text(size = 13),
-      legend.title = element_text(size = 15),
-      axis.text = element_text(size = 13),
-      axis.title.y = element_text(size = 15),
-      axis.text.y = element_text(size = 13),
-      plot.title = element_text(size = 18)
-    ) +
-    coord_cartesian(ylim = c(0, 100))
+      axis.text.x = element_text(face = "bold", size = 12, color = "#1f2937")
+    )
 }
+
 
 generate_boxplotConclu <- function(data, selected_VAF) {
   data_for_plot <- data %>%
-    filter(!is.na(VAFtheoTRANS) & !is.na(VAFtheoPASdeLOH)) %>%
+    filter(!is.na(VAFtheoTRANS), !is.na(VAFtheoPASdeLOH)) %>%
     pivot_longer(
       cols = c(VAFtheoTRANS, VAFtheoPASdeLOH),
       names_to = "Category",
       values_to = "VAF"
     ) %>%
-    mutate(Category = recode(Category,
-                             VAFtheoTRANS = "LOH TRANS",
-                             VAFtheoPASdeLOH = "PAS DE LOH"
-    ))
+    mutate(
+      Category = recode(
+        Category,
+        VAFtheoTRANS = "LOH TRANS",
+        VAFtheoPASdeLOH = "PAS DE LOH"
+      ),
+      Category = factor(Category, levels = c("LOH TRANS", "PAS DE LOH"))
+    )
   
   validate(need(nrow(data_for_plot) > 0, "Aucune donnée exploitable pour le graphique."))
   
-  plot <- ggplot(data_for_plot, aes(x = Category, y = VAF)) +
-    geom_boxplot(aes(fill = Category), color = "#4D4D4D", width = 0.4) +
-    scale_fill_manual(values = c("LOH TRANS" = "#FFCCCB", "PAS DE LOH" = "#ADD8E6")) +
-    labs(y = "VAF estimée", x = NULL) +
-    theme_minimal() +
-    theme(
-      axis.title = element_text(size = 14),
-      axis.text = element_text(size = 12),
-      plot.title = element_text(size = 16),
-      legend.position = "none"
+  summary_stats <- data_for_plot %>%
+    group_by(Category) %>%
+    summarise(
+      n = n(),
+      median_value = median(VAF, na.rm = TRUE),
+      q1 = quantile(VAF, 0.25, na.rm = TRUE),
+      q3 = quantile(VAF, 0.75, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  subtitle_text <- if (!is.null(selected_VAF) && is.numeric(selected_VAF) && length(selected_VAF) == 1) {
+    paste0("Variant sélectionné : VAF observée = ", round(selected_VAF, 3))
+  } else {
+    "Sélectionner un variant dans le tableau pour l'ajouter au graphique"
+  }
+  
+  plot <- ggplot(data_for_plot, aes(x = Category, y = VAF, fill = Category)) +
+    geom_boxplot(
+      width = 0.50,
+      alpha = 0.90,
+      outlier.shape = NA,
+      color = "#4b5563"
     ) +
-    coord_cartesian(ylim = c(0, 1))
+    geom_jitter(
+      width = 0.08,
+      alpha = 0.28,
+      size = 1.8,
+      color = "#4b5563"
+    ) +
+    stat_summary(
+      fun = median,
+      geom = "point",
+      shape = 95,
+      size = 8,
+      color = "#111827"
+    ) +
+    geom_text(
+      data = summary_stats,
+      aes(x = Category, y = 0.98, label = paste0("n = ", n)),
+      inherit.aes = FALSE,
+      size = 4.0,
+      fontface = "bold",
+      color = "#374151"
+    ) +
+    scale_fill_manual(values = c("LOH TRANS" = "#ffd6d6", "PAS DE LOH" = "#d9ecff")) +
+    coord_cartesian(ylim = c(0, 1), clip = "off") +
+    labs(
+      title = "Comparaison à la VAF théorique",
+      subtitle = subtitle_text,
+      x = NULL,
+      y = "VAF estimée"
+    ) +
+    theme_lohmeter()
   
   if (!is.null(selected_VAF) && is.numeric(selected_VAF) && length(selected_VAF) == 1) {
     plot <- plot +
-      annotate("point", x = "LOH TRANS", y = selected_VAF, color = "red", size = 4, shape = 17) +
-      annotate("text", x = "LOH TRANS", y = selected_VAF, label = round(selected_VAF, 2), vjust = -1, color = "red") +
-      annotate("point", x = "PAS DE LOH", y = selected_VAF, color = "red", size = 4, shape = 17) +
-      annotate("text", x = "PAS DE LOH", y = selected_VAF, label = round(selected_VAF, 2), vjust = -1, color = "red")
+      geom_hline(
+        yintercept = selected_VAF,
+        linetype = "dashed",
+        linewidth = 0.7,
+        color = "#dc2626"
+      ) +
+      annotate(
+        "point",
+        x = 1,
+        y = selected_VAF,
+        color = "#dc2626",
+        size = 4,
+        shape = 18
+      ) +
+      annotate(
+        "point",
+        x = 2,
+        y = selected_VAF,
+        color = "#dc2626",
+        size = 4,
+        shape = 18
+      ) +
+      annotate(
+        "text",
+        x = 1.5,
+        y = min(0.99, selected_VAF + 0.05),
+        label = paste0("VAF observée = ", round(selected_VAF, 3)),
+        color = "#dc2626",
+        fontface = "bold",
+        size = 4.2
+      )
   }
   
   plot
@@ -237,7 +363,9 @@ server <- function(input, output, session) {
   
   mean_tumor_percentage <- reactive({
     data <- filtered_processed_data()
-    validate(need(nrow(data) > 0, NA))
+    if (nrow(data) == 0) {
+      return(NA_real_)
+    }
     data %>% summarise(Mean = mean(`%tumoral`, na.rm = TRUE)) %>% pull(Mean)
   })
   
@@ -247,6 +375,17 @@ server <- function(input, output, session) {
   })
   
   selected_columns <- c("Pos.", "Gene", "c..HGVS", "VAF.cons", "VAF.tum", "LOH", "%tumoral")
+  
+  output$table_ui_wrapper <- renderUI({
+    if (nrow(filtered_processed_data()) == 0) {
+      div(
+        style = "height: 460px; display: flex; align-items: center; justify-content: center; text-align: center; color: #888; font-size: 17px; padding: 20px;",
+        "Aucune variation de VAF détectée attestant de perte d'hétérozygotie (LOH)"
+      )
+    } else {
+      DTOutput("table_ui")
+    }
+  })
   
   output$table_ui <- renderDT({
     data <- filtered_processed_data() %>% select(any_of(c(".row_id", selected_columns)))
