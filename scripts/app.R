@@ -16,44 +16,28 @@ ui <- navbarPage(
     "Evaluation du pourcentage tumoral",
     page_sidebar(
       sidebar = sidebar(
-        fileInput(inputId = "constit", label = "Constitutionel"),
-        fileInput(inputId = "tum", label = "Tumoral"),
+        fileInput(
+          inputId = "constit",
+          label = "Constitutionnel",
+          buttonLabel = "Parcourir...",
+          placeholder = "Aucun fichier sélectionné",
+          width = "100%"
+        ),
+        uiOutput("constit_filename"),
+        fileInput(
+          inputId = "tum",
+          label = "Tumoral",
+          buttonLabel = "Parcourir...",
+          placeholder = "Aucun fichier sélectionné",
+          width = "100%"
+        ),
+        uiOutput("tum_filename"),
         checkboxInput(inputId = "filter_rows", label = "Afficher uniquement les lignes CIS et TRANS", value = FALSE),
         uiOutput("delete_button_ui"),
         uiOutput("gene_selector")
       ),
       fluidRow(
-        fluidRow(
-          column(
-            width = 12,
-            card(
-              width = 12,
-              style = "height: 500px; overflow-y: auto;",
-              uiOutput("table_ui_wrapper")
-            )
-          ),
-          column(
-            width = 4,
-            value_box(
-              title = "Pourcentage tumoral estimé",
-              style = "height: 370px;",
-              value = tags$div(
-                style = "font-size: 50px;",
-                textOutput(outputId = "mean_ui")
-              ),
-              showcase = tags$img(src = "test-tube.png", height = "130px")
-            )
-          ),
-          column(
-            width = 8,
-            card(
-              width = 12,
-              style = "height: 370px",
-              full_screen = TRUE,
-              plotOutput(outputId = "plot", height = "400px")
-            )
-          )
-        )
+        uiOutput("main_content_ui")
       )
     )
   ),
@@ -78,7 +62,7 @@ ui <- navbarPage(
           style = "flex: 1; overflow-y: auto; padding: 0;",
           DTOutput("table_uiTum")
         ),
-        checkboxInput(inputId = "new_variants", label = "Nouveaux Variants Somatiques", value = FALSE)
+        checkboxInput(inputId = "new_variants", label = "Nouveaux Variants Somatiques", value = TRUE)
       )
     )
   ),
@@ -294,25 +278,99 @@ server <- function(input, output, session) {
   processed_data <- reactiveVal(NULL)
   result_tumoral <- reactiveVal(NULL)
   selected_VAF <- reactiveVal(NULL)
+  import_error <- reactiveVal(NULL)
+  
+  required_columns_display <- c(
+    "Gene", "Pos.", "Coverage", "c. HGVS",
+    "Transcript", "Type", "Nuc Change", "AA Change", "p. HGVS"
+  )
   
   observeEvent(list(input$constit, input$tum), {
     req(input$constit, input$tum)
     
-    import_data(
-      constit = input$constit$datapath,
-      tumoral = input$tum$datapath,
-      output_cons_tum = "cons_tum_cleaned.rds",
-      output_unique_tumoral = "unique_tumoral.rds"
-    )
+    import_attempt <- tryCatch({
+      import_data(
+        constit = input$constit$datapath,
+        tumoral = input$tum$datapath,
+        output_cons_tum = "cons_tum_cleaned.rds",
+        output_unique_tumoral = "unique_tumoral.rds"
+      )
+      NULL
+    }, error = function(e) conditionMessage(e))
+    
+    if (!is.null(import_attempt)) {
+      import_error(import_attempt)
+      processed_data(NULL)
+      result_tumoral(NULL)
+      return()
+    }
     
     req(file.exists("cons_tum_cleaned.rds"), file.exists("unique_tumoral.rds"))
     
-    result <- analyse_data("cons_tum_cleaned.rds") %>%
-      mutate(.row_id = row_number())
+    analyse_attempt <- tryCatch({
+      analyse_data("cons_tum_cleaned.rds") %>% mutate(.row_id = row_number())
+    }, error = function(e) conditionMessage(e))
     
-    processed_data(result)
+    if (is.character(analyse_attempt)) {
+      import_error(analyse_attempt)
+      processed_data(NULL)
+      result_tumoral(NULL)
+      return()
+    }
+    
+    import_error(NULL)
+    processed_data(analyse_attempt)
     result_tumoral(readRDS(file = "unique_tumoral.rds"))
     selected_VAF(NULL)
+  })
+  
+  output$main_content_ui <- renderUI({
+    if (!is.null(import_error())) {
+      div(
+        style = "height: 500px; display: flex; align-items: center; justify-content: center; text-align: center;",
+        div(
+          style = "max-width: 650px; padding: 30px;",
+          tags$h4("Vérifier le format des données d'entrées.", style = "color: #b91c1c; margin-bottom: 12px;"),
+          tags$p(
+            style = "font-size: 15px;",
+            paste("Colonnes minimales :", paste(required_columns_display, collapse = ", "))
+          ),
+          tags$p(style = "color: #888; font-size: 13px; margin-top: 15px;", import_error())
+        )
+      )
+    } else {
+      fluidRow(
+        column(
+          width = 12,
+          card(
+            width = 12,
+            style = "height: 500px; overflow-y: auto;",
+            uiOutput("table_ui_wrapper")
+          )
+        ),
+        column(
+          width = 4,
+          value_box(
+            title = "Pourcentage tumoral estimé",
+            style = "height: 370px;",
+            value = tags$div(
+              style = "font-size: 50px;",
+              textOutput(outputId = "mean_ui")
+            ),
+            showcase = tags$img(src = "test-tube.png", height = "130px")
+          )
+        ),
+        column(
+          width = 8,
+          card(
+            width = 12,
+            style = "height: 370px",
+            full_screen = TRUE,
+            plotOutput(outputId = "plot", height = "400px")
+          )
+        )
+      )
+    }
   })
   
   filtered_processed_data <- reactive({
@@ -339,6 +397,48 @@ server <- function(input, output, session) {
     }
   })
   
+  output$constit_filename <- renderUI({
+    req(input$constit)
+    tags$div(
+      style = paste(
+        "margin-top: -12px; margin-bottom: 12px;",
+        "padding: 8px 10px;",
+        "font-size: 13px;",
+        "line-height: 1.35;",
+        "color: #374151;",
+        "background: #f9fafb;",
+        "border: 1px solid #e5e7eb;",
+        "border-radius: 6px;",
+        "white-space: normal;",
+        "overflow-wrap: anywhere;",
+        "word-break: break-word;"
+      ),
+      tags$strong("Fichier : "),
+      input$constit$name
+    )
+  })
+
+  output$tum_filename <- renderUI({
+    req(input$tum)
+    tags$div(
+      style = paste(
+        "margin-top: -12px; margin-bottom: 12px;",
+        "padding: 8px 10px;",
+        "font-size: 13px;",
+        "line-height: 1.35;",
+        "color: #374151;",
+        "background: #f9fafb;",
+        "border: 1px solid #e5e7eb;",
+        "border-radius: 6px;",
+        "white-space: normal;",
+        "overflow-wrap: anywhere;",
+        "word-break: break-word;"
+      ),
+      tags$strong("Fichier : "),
+      input$tum$name
+    )
+  })
+
   output$delete_button_ui <- renderUI({
     req(processed_data())
     actionButton(inputId = "delete_rows", label = "Supprimer les lignes sélectionnées", icon = icon("trash-alt"))

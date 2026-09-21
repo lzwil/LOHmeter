@@ -34,12 +34,33 @@ import_data <- function(constit, tumoral,
   constit <- read_delim(file = constit, delim = "\t", na = "", trim_ws = TRUE, show_col_types = FALSE)
   tumoral <- read_delim(file = tumoral, delim = "\t", na = "", trim_ws = TRUE, show_col_types = FALSE)
   
-  colnames(constit) <- gsub(" ", ".", colnames(constit))
-  colnames(tumoral) <- gsub(" ", ".", colnames(tumoral))
+  clean_colnames <- function(x) {
+    x <- gsub("[\u00A0\uFEFF]", " ", x)  # espaces insécables / BOM -> espace normal
+    x <- trimws(x)
+    gsub(" +", ".", x)
+  }
+  
+  colnames(constit) <- clean_colnames(colnames(constit))
+  colnames(tumoral) <- clean_colnames(colnames(tumoral))
   
   excluded_genes <- c("CYP2D6", "CYP1A2", "CYP2C19", "CYP3A4", "CYP3A5")
   retained_columns <- c("Gene", "Transcript", "Pos.", "Type", "Nuc.Change", "Coverage", "AA.Change", "c..HGVS", "p..HGVS")
   join_keys <- c("Pos.", "Gene", "c..HGVS")
+  
+  for (rc in retained_columns) {
+    if (!(rc %in% names(constit))) {
+      stop(
+        "Colonne '", rc, "' introuvable dans le fichier constitutionnel. ",
+        "Colonnes disponibles : ", paste(names(constit), collapse = ", ")
+      )
+    }
+    if (!(rc %in% names(tumoral))) {
+      stop(
+        "Colonne '", rc, "' introuvable dans le fichier tumoral. ",
+        "Colonnes disponibles : ", paste(names(tumoral), collapse = ", ")
+      )
+    }
+  }
   
   constit_filtered <- constit %>%
     filter(!Gene %in% excluded_genes) %>%
